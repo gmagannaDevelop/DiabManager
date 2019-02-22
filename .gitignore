@@ -1,0 +1,10 @@
+mycreds.txt
+client_secrets.json
+Drive.py
+PlayGround/*
+.ipynb_checkpoints
+__pycache__/*
+*.jl
+*.csv
+*.pdf
+.Rhistory
