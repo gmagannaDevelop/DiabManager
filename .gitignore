@@ -1,7 +1,6 @@
 data/*
 mycreds.txt
 client_secrets.json
-Drive.py
 PlayGround/*
 .ipynb_checkpoints
 __pycache__/*
