@@ -270,13 +270,13 @@ _t_data = time_indexed_df(_tmp)
 data = fill_nas(_t_data)
 
 
-# In[14]:
+# In[204]:
 
 
 data2 = copy.deepcopy(data)
 
 
-# In[15]:
+# In[205]:
 
 
 data3 = merge_glycaemic_values(data2)
@@ -284,38 +284,19 @@ data3 = set_hour(data3)
 data3 = tag_glycaemiae(data3)
 
 
-# In[16]:
+# In[206]:
 
 
 postp = data3[ data3['details'] == 'Postprandial']
 
 
-# In[17]:
+# In[207]:
 
 
 meals = data3[ data3.carbs != 0 ]
 
 
-# In[65]:
-
-
-#
-#list(filter(lambda x: x, postp.duplicated()))
-
-
-# In[18]:
-
-
-postp.head(10)
-
-
-# In[19]:
-
-
-meals.head(10)
-
-
-# In[32]:
+# In[208]:
 
 
 start = dt.datetime.now()
@@ -329,7 +310,7 @@ end = dt.datetime.now()
 print(f'Time :{end - start}')
 
 
-# In[33]:
+# In[209]:
 
 
 start = dt.datetime.now()
@@ -345,71 +326,64 @@ end = dt.datetime.now()
 print(f'Time :{end - start}')
 
 
-# In[30]:
+# In[210]:
 
 
 len(real_pairs)
 
 
-# In[43]:
+# In[211]:
 
 
-meal_index = [i[0] for i in real_pairs]
+meal_index  = [i[0] for i in real_pairs]
 postp_index = [i[1] for i in real_pairs]
 
 
-# In[35]:
-
-
-meals.loc[real_pairs[0][0], :]
-
-
-# In[36]:
-
-
-postp.loc[real_pairs[0][1], :]
-
-
-# In[46]:
+# In[212]:
 
 
 filtered_meals = meals.loc[meal_index, :]
-
-
-# In[47]:
-
-
 filtered_postp = postp.loc[postp_index, :]
 
 
-# In[54]:
+# In[213]:
 
 
-filtered_meals.tail()
+meals_idx = filtered_meals.index
 
 
-# In[53]:
+# In[214]:
 
 
-filtered_postp.tail()
+duplicate_idx = filtered_meals[filtered_meals.duplicated()].index
 
 
-# In[59]:
+# In[215]:
 
 
-np.ndarray(filtered_meals)
+indices = []
+for dup in duplicate_idx:
+    indices += [i for i, value in enumerate(meals_idx) if value == dup]
 
 
-# In[57]:
+# In[216]:
 
 
-filtered_meals.duplicated()
+#filtered_meals = filtered_meals.drop(filtered_postp.index[indices]) # Gives key error even though it shouldn't
+filtered_meals = filtered_meals.drop_duplicates(keep=False)
+filtered_postp = filtered_postp.drop(filtered_postp.index[indices])
 
 
-# In[66]:
+# In[217]:
 
 
-filtered_postp.duplicated()
+len(filtered_postp)
+
+
+# In[218]:
+
+
+len(filtered_meals)
 
 
 # In[ ]:
