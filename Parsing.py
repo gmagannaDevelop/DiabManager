@@ -296,6 +296,13 @@ postp = data3[ data3['details'] == 'Postprandial']
 meals = data3[ data3.carbs != 0 ]
 
 
+# In[65]:
+
+
+#
+#list(filter(lambda x: x, postp.duplicated()))
+
+
 # In[18]:
 
 
@@ -308,65 +315,101 @@ postp.head(10)
 meals.head(10)
 
 
-# In[27]:
+# In[32]:
 
 
+start = dt.datetime.now()
 real_pairs = []
 for i in meals.index:
     for j in postp.index:
-        #print(f'{i + dt.timedelta(hours=1)}', f'{j}', f'{i + dt.timedelta(hours=3)}')
         if (i + dt.timedelta(hours=1) < j) and (i + dt.timedelta(hours=3) > j):
             real_pairs.append((i, j))
-        #elif i + dt.timedelta(hours=3) < j
+end = dt.datetime.now()
+
+print(f'Time :{end - start}')
 
 
-# In[28]:
+# In[33]:
+
+
+start = dt.datetime.now()
+real_pairs = []
+for i in meals.index:
+    for j in postp.index:
+        if (i + dt.timedelta(hours=1) < j) and (i + dt.timedelta(hours=3) > j):
+            real_pairs.append((i, j))
+        elif i + dt.timedelta(hours=3) < j:
+            break
+end = dt.datetime.now()
+
+print(f'Time :{end - start}')
+
+
+# In[30]:
 
 
 len(real_pairs)
 
 
-# In[39]:
+# In[43]:
 
 
-print(data3.index[0] - dt.timedelta(hours=2))
-data3.index[0] + dt.timedelta(hours=2)
+meal_index = [i[0] for i in real_pairs]
+postp_index = [i[1] for i in real_pairs]
 
 
-# In[28]:
+# In[35]:
 
 
-dt.timedelta
+meals.loc[real_pairs[0][0], :]
 
 
-# In[ ]:
+# In[36]:
 
 
+postp.loc[real_pairs[0][1], :]
 
 
-
-# In[ ]:
-
+# In[46]:
 
 
+filtered_meals = meals.loc[meal_index, :]
 
 
-# In[ ]:
+# In[47]:
 
 
+filtered_postp = postp.loc[postp_index, :]
 
 
-
-# In[ ]:
-
+# In[54]:
 
 
+filtered_meals.tail()
 
 
-# In[ ]:
+# In[53]:
 
 
+filtered_postp.tail()
 
+
+# In[59]:
+
+
+np.ndarray(filtered_meals)
+
+
+# In[57]:
+
+
+filtered_meals.duplicated()
+
+
+# In[66]:
+
+
+filtered_postp.duplicated()
 
 
 # In[ ]:
