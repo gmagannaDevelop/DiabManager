@@ -192,13 +192,13 @@ def merge_glycaemic_values(df:  pd.core.frame.DataFrame, drop_na=True,
         return _tmp
 
 
-# In[4]:
+# In[31]:
 
 
 d = Drive.Drive()
 
 
-# In[5]:
+# In[32]:
 
 
 file_name = 'journal.jl'
@@ -208,25 +208,25 @@ d.download(file_name   = file_name,
           )
 
 
-# In[6]:
+# In[33]:
 
 
 pre.file_filter(file_path)
 
 
-# In[7]:
+# In[34]:
 
 
 ls data/
 
 
-# In[8]:
+# In[35]:
 
 
 _raw = pd.read_json(file_path, lines=True)
 
 
-# In[9]:
+# In[36]:
 
 
 undesired_columns = [ 
@@ -238,14 +238,14 @@ undesired_columns = [
 ]
 
 
-# In[10]:
+# In[37]:
 
 
 _tmp = _raw.drop(undesired_columns, axis=1)
 _tmp = _tmp.loc[ (_tmp['type'] == 'data') | (_tmp['type'] == 'event') ]
 
 
-# In[11]:
+# In[38]:
 
 
 """
@@ -258,25 +258,25 @@ _tmp = (
 """
 
 
-# In[12]:
+# In[39]:
 
 
 _t_data = time_indexed_df(_tmp)
 
 
-# In[13]:
+# In[40]:
 
 
 data = fill_nas(_t_data)
 
 
-# In[204]:
+# In[41]:
 
 
 data2 = copy.deepcopy(data)
 
 
-# In[205]:
+# In[42]:
 
 
 data3 = merge_glycaemic_values(data2)
@@ -284,19 +284,19 @@ data3 = set_hour(data3)
 data3 = tag_glycaemiae(data3)
 
 
-# In[206]:
+# In[43]:
 
 
 postp = data3[ data3['details'] == 'Postprandial']
 
 
-# In[207]:
+# In[44]:
 
 
 meals = data3[ data3.carbs != 0 ]
 
 
-# In[208]:
+# In[46]:
 
 
 start = dt.datetime.now()
@@ -307,10 +307,10 @@ for i in meals.index:
             real_pairs.append((i, j))
 end = dt.datetime.now()
 
-print(f'Time :{end - start}')
+print(f'Time: {end - start}')
 
 
-# In[209]:
+# In[54]:
 
 
 start = dt.datetime.now()
@@ -319,46 +319,48 @@ for i in meals.index:
     for j in postp.index:
         if (i + dt.timedelta(hours=1) < j) and (i + dt.timedelta(hours=3) > j):
             real_pairs.append((i, j))
+            break
         elif i + dt.timedelta(hours=3) < j:
             break
 end = dt.datetime.now()
 
-print(f'Time :{end - start}')
+print(f'Time: {end - start}')
 
 
-# In[210]:
+# In[55]:
 
 
 len(real_pairs)
 
 
-# In[211]:
+# In[56]:
 
 
 meal_index  = [i[0] for i in real_pairs]
 postp_index = [i[1] for i in real_pairs]
 
 
-# In[212]:
+# In[57]:
 
 
 filtered_meals = meals.loc[meal_index, :]
 filtered_postp = postp.loc[postp_index, :]
 
 
-# In[213]:
+# In[58]:
 
 
 meals_idx = filtered_meals.index
 
 
-# In[214]:
+# In[59]:
 
 
 duplicate_idx = filtered_meals[filtered_meals.duplicated()].index
+duplicate_idx
 
 
-# In[215]:
+# In[60]:
 
 
 indices = []
@@ -366,7 +368,7 @@ for dup in duplicate_idx:
     indices += [i for i, value in enumerate(meals_idx) if value == dup]
 
 
-# In[216]:
+# In[61]:
 
 
 #filtered_meals = filtered_meals.drop(filtered_postp.index[indices]) # Gives key error even though it shouldn't
@@ -374,16 +376,28 @@ filtered_meals = filtered_meals.drop_duplicates(keep=False)
 filtered_postp = filtered_postp.drop(filtered_postp.index[indices])
 
 
-# In[217]:
+# In[62]:
 
 
 len(filtered_postp)
 
 
-# In[218]:
+# In[63]:
 
 
 len(filtered_meals)
+
+
+# In[64]:
+
+
+filtered_meals.join(filtered_postp)
+
+
+# In[30]:
+
+
+filtered_meals.merge(filtered_postp)
 
 
 # In[ ]:
