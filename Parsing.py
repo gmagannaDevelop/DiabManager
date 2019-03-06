@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[131]:
 
 
 ### Needed modules :
@@ -12,6 +12,7 @@ import os
 import gc
 import copy
 import sklearn
+import itertools
 
 # Aliased imports :
 import numpy as np
@@ -25,19 +26,20 @@ from sys import getsizeof
 from typing import List, Tuple
 from scipy import stats
 from functools import reduce
+from sklearn.preprocessing import LabelEncoder
 
 ## User-defined :
 import Preprocessing as pre
 import Drive
 
 
-# In[2]:
+# In[71]:
 
 
 sb.set_style("darkgrid")
 
 
-# In[3]:
+# In[72]:
 
 
 # Function definitions :
@@ -192,13 +194,13 @@ def merge_glycaemic_values(df:  pd.core.frame.DataFrame, drop_na=True,
         return _tmp
 
 
-# In[31]:
+# In[73]:
 
 
 d = Drive.Drive()
 
 
-# In[32]:
+# In[74]:
 
 
 file_name = 'journal.jl'
@@ -208,25 +210,25 @@ d.download(file_name   = file_name,
           )
 
 
-# In[33]:
+# In[75]:
 
 
 pre.file_filter(file_path)
 
 
-# In[34]:
+# In[76]:
 
 
 ls data/
 
 
-# In[35]:
+# In[77]:
 
 
 _raw = pd.read_json(file_path, lines=True)
 
 
-# In[36]:
+# In[78]:
 
 
 undesired_columns = [ 
@@ -238,14 +240,14 @@ undesired_columns = [
 ]
 
 
-# In[37]:
+# In[79]:
 
 
 _tmp = _raw.drop(undesired_columns, axis=1)
 _tmp = _tmp.loc[ (_tmp['type'] == 'data') | (_tmp['type'] == 'event') ]
 
 
-# In[38]:
+# In[80]:
 
 
 """
@@ -258,25 +260,25 @@ _tmp = (
 """
 
 
-# In[39]:
+# In[81]:
 
 
 _t_data = time_indexed_df(_tmp)
 
 
-# In[40]:
+# In[82]:
 
 
 data = fill_nas(_t_data)
 
 
-# In[41]:
+# In[83]:
 
 
 data2 = copy.deepcopy(data)
 
 
-# In[42]:
+# In[84]:
 
 
 data3 = merge_glycaemic_values(data2)
@@ -284,19 +286,19 @@ data3 = set_hour(data3)
 data3 = tag_glycaemiae(data3)
 
 
-# In[43]:
+# In[85]:
 
 
 postp = data3[ data3['details'] == 'Postprandial']
 
 
-# In[44]:
+# In[86]:
 
 
 meals = data3[ data3.carbs != 0 ]
 
 
-# In[46]:
+# In[87]:
 
 
 start = dt.datetime.now()
@@ -310,7 +312,7 @@ end = dt.datetime.now()
 print(f'Time: {end - start}')
 
 
-# In[54]:
+# In[88]:
 
 
 start = dt.datetime.now()
@@ -327,40 +329,47 @@ end = dt.datetime.now()
 print(f'Time: {end - start}')
 
 
-# In[55]:
+# In[89]:
 
 
 len(real_pairs)
 
 
-# In[56]:
+# In[90]:
 
 
 meal_index  = [i[0] for i in real_pairs]
 postp_index = [i[1] for i in real_pairs]
 
 
-# In[57]:
+# In[91]:
 
 
 filtered_meals = meals.loc[meal_index, :]
 filtered_postp = postp.loc[postp_index, :]
 
 
-# In[58]:
+# In[92]:
+
+
+#filtered_meals = filtered_meals.drop(['details', 'type', 'tag'], axis=1)
+filtered_meals = filtered_meals.drop(['details', 'type'], axis=1)
+
+
+# In[93]:
 
 
 meals_idx = filtered_meals.index
 
 
-# In[59]:
+# In[94]:
 
 
 duplicate_idx = filtered_meals[filtered_meals.duplicated()].index
 duplicate_idx
 
 
-# In[60]:
+# In[95]:
 
 
 indices = []
@@ -368,36 +377,125 @@ for dup in duplicate_idx:
     indices += [i for i, value in enumerate(meals_idx) if value == dup]
 
 
-# In[61]:
+# In[96]:
 
 
 #filtered_meals = filtered_meals.drop(filtered_postp.index[indices]) # Gives key error even though it shouldn't
-filtered_meals = filtered_meals.drop_duplicates(keep=False)
-filtered_postp = filtered_postp.drop(filtered_postp.index[indices])
+if indices:
+    filtered_meals = filtered_meals.drop_duplicates(keep=False)
+    filtered_postp = filtered_postp.drop(filtered_postp.index[indices])
 
 
-# In[62]:
+# In[97]:
 
 
 len(filtered_postp)
 
 
-# In[63]:
+# In[98]:
 
 
 len(filtered_meals)
 
 
-# In[64]:
+# In[99]:
 
 
-filtered_meals.join(filtered_postp)
+target = list(filtered_postp['tag'])
 
 
-# In[30]:
+# In[100]:
 
 
-filtered_meals.merge(filtered_postp)
+type(target)
+
+
+# In[101]:
+
+
+filtered_meals['postp tag'] = target
+
+
+# In[102]:
+
+
+filtered_meals.head()
+
+
+# In[103]:
+
+
+#filtered_meals.drop('tag', axis=0, inplace=True)
+
+
+# In[104]:
+
+
+le = LabelEncoder()
+
+
+# In[105]:
+
+
+le.fit(filtered_meals['tag'])
+
+
+# In[106]:
+
+
+filtered_meals['tag'] = le.transform(filtered_meals['tag'])
+
+
+# In[107]:
+
+
+filtered_meals['postp tag'] = le.transform(filtered_meals['postp tag'])
+
+
+# In[108]:
+
+
+filtered_meals.head()
+
+
+# In[109]:
+
+
+tmp = copy.deepcopy(filtered_meals)
+
+
+# In[117]:
+
+
+X = tmp.reset_index().drop(['dateTime', 'postp tag'], axis=1).values
+
+
+# In[124]:
+
+
+type(X)
+
+
+# In[155]:
+
+
+y = np.array(
+            list( 
+                tmp['postp tag'].reset_index().drop('dateTime', axis=1)['postp tag']
+            )
+    )
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
