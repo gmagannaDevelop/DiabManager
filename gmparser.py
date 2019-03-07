@@ -184,10 +184,14 @@ def merge_glycaemic_values(df:  pd.core.frame.DataFrame, drop_na=True,
 ###
 
 
-def main():
+def main() -> Tuple[pd.core.frame.DataFrame, pd.core.frame.DataFrame, np.ndarray, np.ndarray]:
     """ Download JSON-lines logs and output 
-    a tuple containing the predictors and values.
-    (X, y)
+    a tuple containing:
+    Dataframe, 
+    Dataframe (replacing factors 'hypo', 'normo', 'hyper' with a numerical enconding),
+    Predictors, 
+    Target_values
+    (data, encoded_data, X, y)
     """
     d = Drive.Drive()
     
@@ -264,20 +268,24 @@ def main():
     
     target = list(filtered_postp['tag'])
     filtered_meals['postp tag'] = target
+    encoded_df = copy.deepcopy(filtered_meals)
+    
     le = LabelEncoder()
     le.fit(filtered_meals['tag'])
-    filtered_meals['tag'] = le.transform(filtered_meals['tag'])
-    filtered_meals['postp tag'] = le.transform(filtered_meals['postp tag'])
-    tmp = copy.deepcopy(filtered_meals)
+
+    encoded_df['tag'] = le.transform(filtered_meals['tag'])
+    encoded_df['postp tag'] = le.transform(filtered_meals['postp tag'])
+    #tmp = copy.deepcopy(filtered_meals)
     
-    X = tmp.reset_index().drop(['dateTime', 'postp tag'], axis=1).values
+    X = encoded_df.reset_index().drop(['dateTime', 'postp tag'], axis=1).values
     y = np.array(
                 list( 
-                    tmp['postp tag'].reset_index().drop('dateTime', axis=1)['postp tag']
+                    encoded_df['postp tag'].reset_index().drop('dateTime', axis=1)['postp tag']
                 )
         )
     
-    return X, y
+    #print(f'{type(filtered_meals)}, {type(encoded_df)}, {type(X)}, {type(y)}')
+    return (filtered_meals, encoded_df, X, y)
 
 
 if __name__ == '__main__':
