@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[52]:
+# In[28]:
 
 
 import pandas as pd
@@ -21,49 +21,43 @@ from sklearn.svm import SVC
 import gmparser as parse
 
 
-# In[31]:
+# In[29]:
 
 
 data, encoded_data, X, y = parse.main()
 
 
-# In[32]:
+# In[30]:
+
+
+encoded_data.corr()
+
+
+# In[31]:
 
 
 data.head()
 
 
-# In[33]:
-
-
-#X
-
-
-# In[34]:
+# In[32]:
 
 
 X2 = preprocessing.scale(X)
 
 
-# In[35]:
-
-
-#X2
-
-
-# In[36]:
+# In[33]:
 
 
 X_train, X_test, y_train, y_test = train_test_split(X2, y, random_state = 0) 
 
 
-# In[37]:
+# In[34]:
 
 
 kf = KFold(n_splits=5, shuffle=False).split(y)
 
 
-# In[38]:
+# In[35]:
 
 
 #print('Training', 7*'\t', 'Testing')
@@ -71,7 +65,7 @@ kf = KFold(n_splits=5, shuffle=False).split(y)
 #    print(f'{i[0:4]}... \t{i[len(i)-5:len(i)]}, \t{j}')
 
 
-# In[39]:
+# In[36]:
 
 
 svm_model_linear  = SVC(kernel = 'linear', C = 1).fit(X_train, y_train) 
@@ -80,7 +74,7 @@ svm_model_sigmoid = SVC(kernel = 'sigmoid', C = 1).fit(X_train, y_train)
 svm_predictions   = svm_model_sigmoid.predict(X_test) 
 
 
-# In[40]:
+# In[37]:
 
 
 kernels = ['linear', 'rbf', 'sigmoid']
@@ -90,25 +84,25 @@ SVMs = dict(
 )
 
 
-# In[41]:
+# In[38]:
 
 
 SVMs
 
 
-# In[14]:
+# In[39]:
 
 
 sigmoid_cvl = cross_val_score(SVMs['sigmoid'], X2, y, scoring='accuracy', cv = 15)
 
 
-# In[29]:
+# In[40]:
 
 
 print(f'Cross validation scores: \nMin: {sigmoid_cvl.min()}, Mean: {round(sigmoid_cvl.mean(),3)}, Max: {sigmoid_cvl.max()}')
 
 
-# In[16]:
+# In[41]:
 
 
 sb.distplot(sigmoid_cvl)
@@ -123,7 +117,7 @@ for kernel in SVMs.keys():
      cross_vals.update({kernel: _tmp})  
 
 
-# In[46]:
+# In[43]:
 
 
 for val in cross_vals.keys():
@@ -132,7 +126,7 @@ for val in cross_vals.keys():
 
 # ## Grid Search for optimizing parameters
 
-# In[66]:
+# In[44]:
 
 
 param_grid = {
@@ -142,48 +136,48 @@ param_grid = {
 }
 
 
-# In[67]:
+# In[53]:
 
 
 # Make grid search classifier
-clf_grid = GridSearchCV(SVC(), param_grid, verbose=1)
+clf_grid = GridSearchCV(SVC(), param_grid, verbose=1, cv=10)
 
 
-# In[68]:
+# In[54]:
 
 
 clf_grid.fit(X_train, y_train)
 
 
-# In[69]:
+# In[55]:
 
 
 print("Best Parameters:\n", clf_grid.best_params_)
 print("Best Estimators:\n", clf_grid.best_estimator_)
 
 
-# In[70]:
+# In[62]:
 
 
 optimum = cross_val_score(SVC(**clf_grid.best_params_) , X2, y, scoring='accuracy', cv = 15)
 
 
-# In[71]:
+# In[63]:
 
 
 print(f'Cross validation scores: \nMin: {optimum.min()}, Mean: {round(optimum.mean(),3)}, Max: {optimum.max()}')
 
 
-# In[72]:
+# In[64]:
 
 
 sb.distplot(sigmoid_cvl)
 
 
-# In[65]:
+# In[ ]:
 
 
-help(GridSearchCV)
+
 
 
 # In[ ]:
