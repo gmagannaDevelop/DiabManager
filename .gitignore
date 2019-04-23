@@ -6,6 +6,5 @@ PlayGround/*
 __pycache__/*
 *.jl
 *.csv
-*.pdf
 .Rhistory
 untitleds/*
