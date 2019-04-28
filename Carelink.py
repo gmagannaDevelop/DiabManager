@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[252]:
+# In[374]:
+
+
+get_ipython().run_line_magic('reset', '')
+
+
+# In[1]:
 
 
 ## Standard :
@@ -28,7 +34,7 @@ import matplotlib.pyplot as plt
 from plotnine import *
 
 
-# In[213]:
+# In[2]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -36,7 +42,7 @@ plt.rcParams['figure.figsize'] = (15, 6)
 sb.set_style("dark")
 
 
-# In[269]:
+# In[38]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -44,9 +50,18 @@ def split(arr: list, count: int) -> typing.List[list]:
 
 def overlapping_histograms(df: pd.core.frame.DataFrame, 
                            columns: typing.List[str], 
-                           names=None, colors: typing.List[str]=None) -> bool:
+                           names=None, 
+                           colors: typing.List[str]=None,
+                           labels: typing.Tuple[str]=None
+                          ) -> bool:
     """ Create a figure with overlapping histograms and KDEs from 
     a dataframe's specified columns.
+    
+    df : A pandas.core.frame.DataFrame
+    columns : Names of the columns that will be used to construct the histograms.
+    names :  Used to label each histogram and KDE, defaults to 'columns'.
+    colors :  A list of colors for the histograms. See sb.xkcd_rgb for available colors.
+    labels : A tuple containing ('Plot Title', 'xlabel', 'ylabel' )
     
     Returns: 
         True uppon success
@@ -63,17 +78,30 @@ def overlapping_histograms(df: pd.core.frame.DataFrame,
     
     if not colors:
         colors = [random.choice(list(sb.xkcd_rgb.values())) for i in range(len(columns))]
-
+    
     for column, name, color in zip(columns, names, colors):
         sb.distplot(
             raw[column].dropna(), 
-            kde_kws={"color":color,"lw":4,"label":name,"alpha":0.5}, 
-            hist_kws={"color":color,"alpha":0.3}
+            kde_kws={"color":color,"lw":2,"label":name,"alpha":0.6}, 
+            hist_kws={"color":color,"alpha":0.25}
         )
+    
+    if labels:
+        plt.title(labels[0])
+        plt.xlabel(labels[1])
+        plt.ylabel(labels[2])
     
     return True
     
 
+def select_date_range(df: pd.core.frame.DataFrame, 
+                     start_date: str, 
+                     end_date: str) -> pd.core.frame.DataFrame:
+    """
+    """
+    mask = (df.index >= start_date) & (df.index <= end_date)
+    
+    
 
 def time_indexed_df(df1: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     """ Cast into a time-indexed dataframe.
@@ -106,19 +134,19 @@ def merge_date_time(df1: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     
 
 
-# In[270]:
+# In[19]:
 
 
 raw = pd.read_csv('data/carelink2.csv')
 
 
-# In[216]:
+# In[20]:
 
 
 raw.columns, len(raw.index)
 
 
-# In[217]:
+# In[21]:
 
 
 #raw['Bolus Source'].value_counts()
@@ -129,7 +157,7 @@ raw.columns, len(raw.index)
 raw['Bolus Number'] = raw['Bolus Number'].apply(lambda x: int(x) if type(x) is str else x)
 
 
-# In[218]:
+# In[22]:
 
 
 # Check if the list contains other thing than integers.
@@ -140,19 +168,19 @@ list(
 )
 
 
-# In[219]:
+# In[23]:
 
 
 type(5) is int
 
 
-# In[220]:
+# In[24]:
 
 
 raw = merge_date_time(raw)
 
 
-# In[221]:
+# In[25]:
 
 
 # Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
@@ -161,17 +189,18 @@ for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
     raw = raw[raw.dateTime != row]
 
 
-# In[222]:
+# In[26]:
 
 
-pool = mp.Pool(processes=4)
+pool = mp.Pool() # processes parameter can be set manually, 
+                 # but this is suposed to spawn the same number as the system has cores.
 start = time.clock()
 raw.dateTime = pool.map(pd.to_datetime, raw.dateTime)
 elapsed = time.clock()
 print(f'{elapsed - start}')
 
 
-# In[281]:
+# In[27]:
 
 
 undesired_columns = [
@@ -181,10 +210,15 @@ undesired_columns = [
     'BWZ Target High BG (mg/dL)', 
     'BWZ Target Low BG (mg/dL)',
     'Bolus Type',
+    'Insulin Action Curve Time',
     'New Device Time',
+    'Bolus Duration (h:mm:ss)',
     'Prime Type', 
     'Prime Volume Delivered (U)',
-    'Alarm', 
+    'Alarm',
+    'ISIG Value',
+    'Event Marker',
+    'Bolus Number',
     'Suspend', 
     'Rewind',
     'Linked BG Meter ID',
@@ -201,43 +235,53 @@ undesired_columns = [
 ]
 
 
-# In[282]:
+# In[28]:
 
 
 raw = raw.drop(undesired_columns, axis=1)
 
 
-# In[283]:
+# In[29]:
 
 
 raw.columns
 
 
-# In[ ]:
+# In[33]:
 
 
+unsure_columns = [
+    'BG Reading (mg/dL)',
+    'Sensor Calibration BG (mg/dL)'
+]
 
 
+# In[34]:
 
-# In[276]:
+
+proc1 = raw.drop(unsure_columns, axis=1)
+
+
+# In[35]:
+
+
+proc1 = time_indexed_df(proc1)
+
+
+# In[39]:
 
 
 overlapping_histograms(proc1, 
                        ['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)'],
-                      colors=['red', 'green', 'blue'])
+                       colors=['red', 'green', 'blue'], 
+                       labels=('Bolus Wizard Estimation', 'Units', 'Density')
+                      )
 
 
-# In[264]:
+# In[37]:
 
 
-[random.choice(list(sb.xkcd_rgb)) for i in range(10)]
-
-
-# In[233]:
-
-
-#sb.distplot(raw['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)'].dropna())
-raw[['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)']]
+len(proc1['Basal Rate (U/h)']), proc1['Basal Rate (U/h)'].count()
 
 
 # In[185]:
@@ -247,22 +291,35 @@ raw[['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Esti
  #   sb.jointplot('Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', raw[['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)']].dropna(), kind='hex')
 
 
-# In[186]:
+# In[53]:
 
 
-proc1 = time_indexed_df(raw)
+proc1['2019']['Basal Rate (U/h)'].count(), proc1['2019']['Basal Rate (U/h)'].interpolate(method='pad').count()
 
 
-# In[211]:
+# In[71]:
 
 
-proc1[''].dropna().loc['2019/03'].plot()
+proc1.loc['2019/02/10 01':'2019/02/10 02']['Basal Rate (U/h)']
 
 
-# In[190]:
+# In[110]:
 
 
-proc1.loc['2019', :]['Sensor Glucose (mg/dl)']
+(proc1.loc['2019/02/09 12':'2019/02/12 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
+proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
+proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
+proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
+plt.axhline(200, color='red')
+plt.axhline(70, color='green')
+plt.legend(['Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic'])
+
+
+# In[89]:
+
+
+proc1.loc['2019/02/10 01']['Sensor Glucose (mg/dL)']*8
 
 
 # In[107]:
