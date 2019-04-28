@@ -303,17 +303,55 @@ proc1['2019']['Basal Rate (U/h)'].count(), proc1['2019']['Basal Rate (U/h)'].int
 proc1.loc['2019/02/10 01':'2019/02/10 02']['Basal Rate (U/h)']
 
 
-# In[110]:
+# In[136]:
 
 
-(proc1.loc['2019/02/09 12':'2019/02/12 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
-proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
-proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
-proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
-proc1.loc['2019/02/09 12':'2019/02/12 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
+def hybrid_interpolator(data: pd.core.series.Series, 
+                        methods: typing.List[str] = ['linear', 'spline'], 
+                        weights: typing.List[float] = [0.6, 0.4],
+                        order: int = 2
+                       ) -> pd.core.series.Series:
+    """
+    Return a pandas.core.series.Series instance resulting of the weighted average
+    of two interpolation methods.
+    
+    Model:
+        φ = β1*method1 + β2*method2
+        
+    Default:
+        β1, β2 = 0.6, 0.4
+        method1, method2 = linear, spline
+    
+    This function should have support for keyword arguments, but is yet to be implemented.
+    """
+    predictions: typing.List[float] = [] 
+    
+    for met in methods:
+        if (met == 'spline') or (met == 'polynomial'):
+            predictions.append(data.interpolate(method=met, order=order))
+        else:
+            predictions.append(data.interpolate(method=met))
+
+    interpolated = weights[0]*predictions[0] + weights[1]*predictions[1]
+    
+    return interpolated
+        
+    
+
+
+# In[138]:
+
+
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='spline', order=2).plot()
+hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']).plot()
 plt.axhline(200, color='red')
 plt.axhline(70, color='green')
-plt.legend(['Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic'])
+plt.legend(['Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', 'hybrid'])
 
 
 # In[89]:
@@ -456,6 +494,12 @@ glucosas = filter(lambda x: x if not np.isnan(x) else False,
             )
 #Value error: cannot convert float NaN to integer
 '''    
+
+
+# In[118]:
+
+
+np.array([[1], [2], [3]])
 
 
 # In[ ]:
