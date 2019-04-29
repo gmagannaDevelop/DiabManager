@@ -442,56 +442,56 @@ unsure_columns = [
 ]
 
 
-# In[397]:
+# In[409]:
 
 
 proc1 = raw.drop(unsure_columns, axis=1)
 
 
-# In[398]:
+# In[410]:
 
 
 proc1 = time_indexed_df(proc1)
 
 
-# In[404]:
+# In[411]:
 
 
 # len(proc1)
 
 
-# In[405]:
+# In[412]:
 
 
 # proc1.head(3) 
 
 
-# In[406]:
+# In[413]:
 
 
-# proc1 = proc1.iloc[2:, :]
+proc1 = proc1.iloc[2:, :]
 
 
-# In[407]:
+# In[414]:
 
 
 # len(proc1)
 
 
-# In[408]:
+# In[415]:
 
 
 # proc1.head(3)
 
 
-# In[318]:
+# In[416]:
 
 
 # Cutoff seconds so that measurements are not lost when interpolating.
-proc1.index = proc1.index.map(lambda t: t.replace(second=0))
+proc1.index = proc1.index .map(lambda t: t.replace(second=0))
 
 
-# In[319]:
+# In[417]:
 
 
 overlapping_histograms(proc1, 
@@ -501,7 +501,7 @@ overlapping_histograms(proc1,
                       )
 
 
-# In[327]:
+# In[418]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -528,52 +528,112 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
     return df
 
 
-# In[342]:
+# In[419]:
 
 
 proc1.loc[proc1.index[0], proc1.index[-1]].max()
 
 
-# In[345]:
+# In[420]:
 
 
 len(proc1.index), len(proc1.index.get_duplicates())
 
 
-# In[346]:
+# In[421]:
 
 
 dummy = proc1.copy()
 
 
-# In[347]:
+# In[422]:
 
 
 dummy['_grouper'] = dummy.index
 
 
-# In[350]:
+# In[423]:
 
 
 dummy = dummy.groupby('_grouper').max().reset_index()
 
 
-# In[351]:
+# In[424]:
 
 
 dummy.index = dummy['_grouper']
 
 
-# In[364]:
+# In[425]:
 
 
 dummy = dummy.drop('_grouper', axis=1)
 
 
-# In[365]:
+# In[433]:
+
+
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['BWZ Carb Input (grams)'].dropna()).plot()
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='spline', order=2).plot()
+[
+    hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'], weights=w).plot()
+    for w in weights_set
+]
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']
+plt.axhline(200, color='red')
+plt.axhline(70, color='green')
+plt.legend(['Bolus', 'Carbs', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
+
+
+# In[434]:
+
+
+proc1 = dummy
+
+
+# In[435]:
+
+
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['BWZ Carb Input (grams)'].dropna()).plot()
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='spline', order=2).plot()
+[
+    hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'], weights=w).plot()
+    for w in weights_set
+]
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']
+plt.axhline(200, color='red')
+plt.axhline(70, color='green')
+plt.legend(['Bolus', 'Carbs', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
+
+
+# In[426]:
 
 
 dummy['Sensor Glucose (mg/dL)'].plot()
+
+
+# In[428]:
+
+
+proc1.duplicated().head()
+
+
+# In[432]:
+
+
+proc1.loc['2018/06/23 17:27:00']
 
 
 # In[357]:
