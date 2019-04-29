@@ -56,7 +56,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[255]:
+# In[290]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -271,7 +271,7 @@ def probability_estimate(data: pd.core.series.Series,
     # Plot the data using a normalized histogram
     dev = copy.deepcopy(data)
     dev = dev.dropna()
-    x = np.linspace(dev.min(), , 1000)[:, np.newaxis]
+    x = np.linspace(dev.min(), min(data), max(data))[:, np.newaxis]
 
     # Do kernel density estimation
     kd = KernelDensity(kernel='gaussian', bandwidth=0.85).fit(np.array(dev).reshape(-1, 1))
@@ -315,6 +315,14 @@ def dev_from_mean(data: pd.core.series.Series) -> typing.Tuple[float, pd.core.se
     _avg_dev_mean: float = _devs.mean()
         
     return _mean, _std, _devs, _avg_dev_mean
+
+
+def porcentage_original(serie: pd.core.series.Series, start: str, stop: str) -> float:
+    return serie[start:stop].count() / len(serie.loc[start:stop])
+    
+    
+def porcentage_interpolated(serie: pd.core.series.Series, start: str, stop: str) -> float:
+    return 1 - porcentage_original(serie, start, stop)
 
 
 # In[188]:
@@ -425,7 +433,7 @@ raw = raw.drop(undesired_columns, axis=1)
 raw.columns
 
 
-# In[198]:
+# In[388]:
 
 
 unsure_columns = [
@@ -434,19 +442,56 @@ unsure_columns = [
 ]
 
 
-# In[199]:
+# In[397]:
 
 
 proc1 = raw.drop(unsure_columns, axis=1)
 
 
-# In[200]:
+# In[398]:
 
 
 proc1 = time_indexed_df(proc1)
 
 
-# In[201]:
+# In[404]:
+
+
+# len(proc1)
+
+
+# In[405]:
+
+
+# proc1.head(3) 
+
+
+# In[406]:
+
+
+# proc1 = proc1.iloc[2:, :]
+
+
+# In[407]:
+
+
+# len(proc1)
+
+
+# In[408]:
+
+
+# proc1.head(3)
+
+
+# In[318]:
+
+
+# Cutoff seconds so that measurements are not lost when interpolating.
+proc1.index = proc1.index.map(lambda t: t.replace(second=0))
+
+
+# In[319]:
 
 
 overlapping_histograms(proc1, 
@@ -454,6 +499,157 @@ overlapping_histograms(proc1,
                        colors=['red', 'green', 'blue'], 
                        labels=('Bolus Wizard Estimation', 'Units', 'Density')
                       )
+
+
+# In[327]:
+
+
+def resample_dataframe(_df : pd.core.frame.DataFrame,
+         interpolation : bool = False,
+         resample_freq : str  = '1T') -> pd.core.frame.DataFrame:
+    '''
+        Resamples
+    '''
+
+    df = _df.copy()
+    df = df.resample(resample_freq).mean()
+
+    df[_df.index] = _df[_df.index]
+    
+    if interpolation:
+        '''
+        carbs = carbs.resample(interpolation_ratio).mean()
+        insu  = insu.resample(interpolation_ratio).mean()
+        carbs = carbs.fillna(0)
+        insu  = insu.fillna(0)
+        glc   = glc.interpolate()
+        '''    
+  
+    return df
+
+
+# In[342]:
+
+
+proc1.loc[proc1.index[0], proc1.index[-1]].max()
+
+
+# In[345]:
+
+
+len(proc1.index), len(proc1.index.get_duplicates())
+
+
+# In[346]:
+
+
+dummy = proc1.copy()
+
+
+# In[347]:
+
+
+dummy['_grouper'] = dummy.index
+
+
+# In[350]:
+
+
+dummy = dummy.groupby('_grouper').max().reset_index()
+
+
+# In[351]:
+
+
+dummy.index = dummy['_grouper']
+
+
+# In[364]:
+
+
+dummy = dummy.drop('_grouper', axis=1)
+
+
+# In[365]:
+
+
+dummy['Sensor Glucose (mg/dL)'].plot()
+
+
+# In[357]:
+
+
+f"Original index: {len(proc1.index)},\n  Original duplicates: {len(proc1.index.get_duplicates())},\n  index - duplicates: {len(proc1.index) - len(proc1.index.get_duplicates())},\n  merged_index: {len(dummy.index)}, merged_index_duplicates: {len(dummy.index.get_duplicates())}"
+
+
+# In[360]:
+
+
+proc1.duplicated()
+
+
+# In[349]:
+
+
+'2019-04-23 16:27:00' in map(lambda x: str(x), proc1.index.get_duplicates())
+
+
+# In[340]:
+
+
+pd.core.series.Series(sorted(set(proc1.index))) == proc1.index
+
+
+# In[332]:
+
+
+df  = proc1.replace(np.nan, '').ffill().bfill()
+df_ = df.replace('', np.nan).ffill().bfill()
+
+
+# In[333]:
+
+
+pd.concat([
+        df_[df_.duplicated()],
+        df.loc[df_.drop_duplicates(keep=False).index]
+    ])
+
+
+# In[334]:
+
+
+proc1.resample('1T').asfreq()
+
+
+# In[328]:
+
+
+resampled1 = resample_dataframe(proc1)
+
+
+# In[322]:
+
+
+proc1.index
+
+
+# In[323]:
+
+
+proc1.index.map(lambda t: t.replace(second=0))
+
+
+# In[324]:
+
+
+proc1.iloc[0:20, :]
+
+
+# In[326]:
+
+
+resampled1.iloc[25:40, :]
 
 
 # In[19]:
@@ -517,10 +713,11 @@ weights_set = [
 labs = [f'Corrected hybrid {weight}' for weight in weights_set]
 
 
-# In[242]:
+# In[265]:
 
 
 (proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
+(proc1.loc['2019/02/14 12':'2019/02/15 12']['BWZ Carb Input (grams)'].dropna()).plot()
 (proc1.loc['2019/02/14 12':'2019/02/15 12']['Basal Rate (U/h)'].interpolate(method='pad')*100).plot()
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='slinear').plot()
@@ -534,7 +731,7 @@ proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']
 plt.axhline(200, color='red')
 plt.axhline(70, color='green')
-plt.legend(['Bolus', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
+plt.legend(['Bolus', 'Carbs', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
 
 
 # In[237]:
@@ -545,7 +742,7 @@ gap1 = copy.deepcopy(test_day)
 gap2 = copy.deepcopy(test_day)
 
 
-# In[131]:
+# In[266]:
 
 
 proc2 = proc1.loc['2019/02/05':'2019/04/23']
@@ -634,6 +831,24 @@ proc1.loc['2019/02/01 10':'2019/02/05 23']['Sensor Glucose (mg/dL)'].plot()
 plt.legend(['Naive hybrid', *labs, 'Linear', 'Original Data'])
 
 
+# In[282]:
+
+
+proc1.loc['2019/03/01':'2019/03/08']['Sensor Glucose (mg/dL)'].count() / len(proc1.loc['2019/03/01':'2019/03/08']['Sensor Glucose (mg/dL)'])
+
+
+# In[286]:
+
+
+
+
+
+# In[288]:
+
+
+porcentage_original(proc1['Sensor Glucose (mg/dL)'], proc1.index[0], proc1.index[-1]), porcentage_interpolated(proc1['Sensor Glucose (mg/dL)'], proc1.index[0], proc1.index[-1])
+
+
 # In[148]:
 
 
@@ -643,6 +858,12 @@ for date in dates:
     proc1.loc[date]['Sensor Glucose (mg/dL)'].plot()
     plt.legend(['Hybrid interpolator', 'Linear', 'Data'])
     plt.show()
+
+
+# In[ ]:
+
+
+
 
 
 # In[149]:
@@ -807,10 +1028,10 @@ glucosas = filter(lambda x: x if not np.isnan(x) else False,
 '''    
 
 
-# In[ ]:
+# In[279]:
 
 
-
+len(proc2.loc['2019/02/02':'2019/02/05']), len(proc2.loc['2019/02/02':'2019/02/05'].resample('1T').mean())
 
 
 # In[ ]:
