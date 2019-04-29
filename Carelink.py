@@ -535,13 +535,24 @@ probability_estimate(dev, 0, 85, N=500, show_plots=False)
 
 
 
-# In[ ]:
+# In[235]:
 
 
+weights_set = [ 
+    [0.1, 0.9], 
+    [0.2, 0.8],
+    [0.3, 0.7],
+    [0.4, 0.6],
+    [0.5, 0.5],
+    [0.6, 0.4],
+    [0.7, 0.3],
+    [0.8, 0.2],
+    [0.9, 0.1]
+]
+labs = [f'Corrected hybrid {weight}' for weight in weights_set]
 
 
-
-# In[129]:
+# In[242]:
 
 
 (proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
@@ -551,18 +562,22 @@ proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='quadratic').plot()
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='spline', order=2).plot()
-hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']).plot()
+[
+    hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'], weights=w).plot()
+    for w in weights_set
+]
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']
 plt.axhline(200, color='red')
 plt.axhline(70, color='green')
-plt.legend(['Bolus', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', 'hybrid', 'Data'])
+plt.legend(['Bolus', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
 
 
-# In[130]:
+# In[237]:
 
 
 test_day = copy.deepcopy(proc1.loc['2019/02/14 12':'2019/02/14 22']['Sensor Glucose (mg/dL)'])
 gap1 = copy.deepcopy(test_day)
+gap2 = copy.deepcopy(test_day)
 
 
 # In[131]:
@@ -593,25 +608,43 @@ x = df.isnull().astype(int).groupby(df.notnull().astype(int).cumsum()).sum()
 #x
 
 
-# In[135]:
+# In[238]:
 
 
 gap1.loc['2019/02/14 20:00':'2019/02/14 20:30'] = np.nan
-gap1.loc['2019/02/14 13:45':'2019/02/14 14:25'] = np.nan
+gap2.loc['2019/02/14 13:45':'2019/02/14 14:25'] = np.nan
 #gap1.loc['2019/02/14 17:45':'2019/02/14 18:15'] = np.nan
 
 
-# In[136]:
+# In[241]:
 
 
-gap1.interpolate(method='linear').plot()
-gap1.interpolate(method='spline', order=2).plot()
-hybrid_interpolator(gap1).plot()
-test_day.plot()
-gap1.plot()
+gap1.loc['2019/02/14 19':'2019/02/14 22'].interpolate(method='linear').plot()
+gap1.loc['2019/02/14 19':'2019/02/14 22'].interpolate(method='spline', order=2).plot()
+[
+    hybrid_interpolator(gap1.loc['2019/02/14 19':'2019/02/14 22'], weights=w).plot()
+    for w in weights_set
+]
+gap1.loc['2019/02/14 19':'2019/02/14 22'].plot()
 plt.axhline(200, color='red')
 plt.axhline(70, color='green')
-plt.legend(['Linear interpolation', 'Order 2 spline', 'Hybrid interpolator', 'Original data', 'gap1'])
+plt.legend(['Linear interpolation', 'Order 2 spline', *labs, 'Original data', 'gap1'])
+
+
+# In[240]:
+
+
+gap2.interpolate(method='linear').plot()
+gap2.interpolate(method='spline', order=2).plot()
+[
+    hybrid_interpolator(gap2, weights=w).plot()
+    for w in weights_set
+]
+test_day.plot()
+gap2.plot()
+plt.axhline(200, color='red')
+plt.axhline(70, color='green')
+plt.legend(['Linear interpolation', 'Order 2 spline', *labs, 'Original data', 'gap1'])
 
 
 # In[137]:
@@ -636,10 +669,23 @@ for i in range(1, 4):
             dates.append(f'2019/0{i}/{j}')
 
 
-# In[ ]:
+# In[233]:
 
 
 
+
+
+# In[234]:
+
+
+naive_hybrid_interpolator(proc1.loc['2019/02/01 10':'2019/02/05 23']['Sensor Glucose (mg/dL)']).plot()
+[
+    hybrid_interpolator(proc1.loc['2019/02/01 10':'2019/02/05 23']['Sensor Glucose (mg/dL)'], weights=w).plot()
+    for w in weights_set
+]
+proc1.loc['2019/02/01 10':'2019/02/05 23']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+proc1.loc['2019/02/01 10':'2019/02/05 23']['Sensor Glucose (mg/dL)'].plot()
+plt.legend(['Naive hybrid', *labs, 'Linear', 'Original Data'])
 
 
 # In[148]:
