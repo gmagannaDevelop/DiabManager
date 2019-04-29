@@ -7,7 +7,17 @@
 get_ipython().run_line_magic('reset', '')
 
 
-# In[170]:
+# In[184]:
+
+
+### To measure execution time (this method might not be very accurate, use with precaution)
+#start = time.clock()
+### "Instructions"
+#elapsed = time.clock()
+#print(f'{elapsed - start}')
+
+
+# In[185]:
 
 
 ## Standard :
@@ -30,11 +40,15 @@ import datetime as dt
 import seaborn as sb
 import matplotlib.pyplot as plt
 
+# Partial imports :
+from scipy.integrate import quad as integrate
+from sklearn.neighbors import KernelDensity
+
 # Full imports :
 from plotnine import *
 
 
-# In[213]:
+# In[186]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -42,7 +56,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[172]:
+# In[187]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -131,182 +145,75 @@ def merge_date_time(df1: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
     _tmp.drop(['Date', 'Time'], axis=1, inplace=True)
     gc.collect()
     return _tmp
+
+def hybrid_interpolator(data: pd.core.series.Series,
+                        mean: float = None,
+                        limit: float = None,
+                        methods: typing.List[str] = ['linear', 'spline'], 
+                        weights: typing.List[float] = [0.65, 0.35],
+                        direction: str = 'forward',
+                        order: int = 2
+                       ) -> pd.core.series.Series:
+    """
+    Return a pandas.core.series.Series instance resulting of the weighted average
+    of two interpolation methods.
     
-
-
-# In[273]:
-
-
-raw = pd.read_csv('data/carelink2.csv')
-
-
-# In[274]:
-
-
-raw.columns, len(raw.index)
-
-
-# In[275]:
-
-
-#raw['Bolus Source'].value_counts()
-#raw['Bolus Number'].value_counts()
-#len(raw['dateTime'])
-#raw['BWZ Unabsorbed Insulin Total (U)'].value_counts()
-#raw['Bolus Cancellation Reason'].value_counts()
-raw['Bolus Number'] = raw['Bolus Number'].apply(lambda x: int(x) if type(x) is str else x)
-
-
-# In[276]:
-
-
-# Check if the list contains other thing than integers.
-list(
-    filter(
-        lambda x: False if type(x) is int else True, raw['Final Bolus Estimate'].value_counts()
-    )
-)
-
-
-# In[277]:
-
-
-type(5) is int
-
-
-# In[278]:
-
-
-raw = merge_date_time(raw)
-
-
-# In[279]:
-
-
-# Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
-# as they impede coercing the values into timestamps.
-for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
-    raw = raw[raw.dateTime != row]
-
-
-# In[280]:
-
-
-pool = mp.Pool() # processes parameter can be set manually, 
-                 # but this is suposed to spawn the same number as the system has cores.
-start = time.clock()
-raw.dateTime = pool.map(pd.to_datetime, raw.dateTime)
-elapsed = time.clock()
-print(f'{elapsed - start}')
-
-
-# In[281]:
-
-
-undesired_columns = [
-    'Index',
-    'Temp Basal Type', 
-    'Temp Basal Duration (h:mm:ss)',
-    'BWZ Target High BG (mg/dL)', 
-    'BWZ Target Low BG (mg/dL)',
-    'Bolus Type',
-    'Insulin Action Curve Time',
-    'New Device Time',
-    'Bolus Duration (h:mm:ss)',
-    'Prime Type', 
-    'Prime Volume Delivered (U)',
-    'Alarm',
-    'ISIG Value',
-    'Event Marker',
-    'Bolus Number',
-    'Suspend', 
-    'Rewind',
-    'Linked BG Meter ID',
-    'Bolus Cancellation Reason',
-    'Scroll Step Size',
-    'Sensor Calibration Rejected Reason',
-    'Network Device Associated Reason',
-    'Network Device Disassociated Reason',
-    'Network Device Disconnected Reason',
-    'Sensor Exception',
-    'Preset Temp Basal Name',
-    'Preset Bolus', 
-    'Bolus Source'
-]
-
-
-# In[282]:
-
-
-raw = raw.drop(undesired_columns, axis=1)
-
-
-# In[283]:
-
-
-raw.columns
-
-
-# In[284]:
-
-
-unsure_columns = [
-    'BG Reading (mg/dL)',
-    'Sensor Calibration BG (mg/dL)'
-]
-
-
-# In[285]:
-
-
-proc1 = raw.drop(unsure_columns, axis=1)
-
-
-# In[286]:
-
-
-proc1 = time_indexed_df(proc1)
-
-
-# In[287]:
-
-
-overlapping_histograms(proc1, 
-                       ['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)'],
-                       colors=['red', 'green', 'blue'], 
-                       labels=('Bolus Wizard Estimation', 'Units', 'Density')
-                      )
-
-
-# In[288]:
-
-
-len(proc1['Basal Rate (U/h)']), proc1['Basal Rate (U/h)'].count()
-
-
-# In[185]:
-
-
-#with sb.axes_style('white'):
- #   sb.jointplot('Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', raw[['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)']].dropna(), kind='hex')
-
-
-# In[290]:
-
-
-len(proc1['2019']['Basal Rate (U/h)']), proc1['2019']['Basal Rate (U/h)'].interpolate(method='pad').count()
-
-
-# In[385]:
-
-
-#proc1.loc['2019/02/10 01':'2019/02/10 02']['Basal Rate (U/h)']
-
-
-# In[413]:
-
-
-def hybrid_interpolator(data: pd.core.series.Series, 
+    Model:
+        φ = β1*method1 + β2*method2
+        
+    Default:
+        β1, β2 = 0.6, 0.4
+        method1, method2 = linear, spline
+    
+    Weights are meant to be numbers from the interval (0, 1)
+    which add up to one, to keep the weighted sum consistent.
+    
+    limit_direction : {‘forward’, ‘backward’, ‘both’}, default ‘forward’
+    If limit is specified, consecutive NaNs will be filled in this direction.
+    
+    If the predicted φ_i value is outside of the the interval
+    ( (mean - limit), (mean + limit) )
+    it will be replaced by the linear interpolation approximation.
+    
+    If not set, mean and limit will default to:
+        mean = data.mean()
+        limit = 2 * data.std()
+    
+    This function should have support for keyword arguments, but is yet to be implemented.
+    """
+    predictions: typing.List[float] = [] 
+    
+    if not np.isclose(sum(weight for weight in weights), 1):
+        raise Exception('Sum of weights must be equal to one!')
+    
+    for met in methods:
+        if (met == 'spline') or (met == 'polynomial'):
+            predictions.append(data.interpolate(method=met, order=order, limit_direction=direction))
+        else:
+            predictions.append(data.interpolate(method=met, limit_direction=direction))
+
+    linear: pd.core.series.Series = predictions[0]
+    spline: pd.core.series.Series = predictions[1]
+    hybrid: pd.core.series.Series = weights[0]*predictions[0] + weights[1]*predictions[1]
+    
+    corrected: pd.core.series.Series = copy.deepcopy(hybrid) 
+    
+    if not mean:
+        mean = data.mean()
+    if not limit:
+        limit = 2 * data.std()
+    
+    for idx, val in zip(hybrid[ np.isnan(data) ].index, hybrid[ np.isnan(data) ]):
+        if (val > mean + limit) or (val < mean - limit):
+            corrected[idx] = linear[idx]
+    
+    #df = copy.deepcopy(interpolated)
+    #print(df.isnull().astype(int).groupby(df.notnull().astype(int).cumsum()).sum())
+    
+    return corrected
+    
+    
+def naive_hybrid_interpolator(data: pd.core.series.Series, 
                         methods: typing.List[str] = ['linear', 'spline'], 
                         weights: typing.List[float] = [0.85, 0.15],
                         direction: str = 'both',
@@ -351,41 +258,290 @@ def hybrid_interpolator(data: pd.core.series.Series,
     #print(df.isnull().astype(int).groupby(df.notnull().astype(int).cumsum()).sum())
     
     return interpolated
-        
     
 
-
-# In[421]:
-
-
-def dev_from_mean(data: pd.core.series.Series) -> None:
+def probability_estimate(data: pd.core.series.Series, 
+                         start: float, 
+                         end: float, 
+                         N: int = 150,
+                         show_plots=False) -> float:
     """
-    https://stackoverflow.com/questions/38711541/how-to-compute-the-probability-of-a-value-given-a-list-of-samples-from-a-distrib
-    calculate probabilitiés avec ça.
+    """
+    
+    # Plot the data using a normalized histogram
+    dev = copy.deepcopy(data)
+    dev = dev.dropna()
+    x = np.linspace(0, 250, 1000)[:, np.newaxis]
+
+    # Do kernel density estimation
+    kd = KernelDensity(kernel='gaussian', bandwidth=0.85).fit(np.array(dev).reshape(-1, 1))
+
+    # Plot the estimated densty
+    kd_vals = np.exp(kd.score_samples(x))
+
+    # Show the plots
+    if show_plots:
+        plt.plot(x, kd_vals)
+        plt.hist(dev, 50, normed=True)
+        plt.xlabel('Concentration mg/dl')
+        plt.ylabel('Density')
+        plt.title('Absolute deviations distribution')
+        plt.show()
+
+    #probability = integrate(lambda x: np.exp(kd.score_samples(x.reshape(-1, 1))), start, end)[0]
+    
+    # Integration :
+    step = (end - start) / (N - 1)  # Step size
+    x = np.linspace(start, end, N)[:, np.newaxis]  # Generate values in the range
+    kd_vals = np.exp(kd.score_samples(x))  # Get PDF values for each x
+    probability = np.sum(kd_vals * step)  # Approximate the integral of the PDF
+    
+    return probability
+
+
+def dev_from_mean(data: pd.core.series.Series) -> typing.Tuple[float, pd.core.series.Series, float]:
+    """
+    Returns (mean, abs_deviations, avg_of_devs)
+    
+        mean: float = the mean of the sample
+        
+        abs_deviations: pandas.core.series.Series = absoulute value of deviations from the mean
+        
+        avg_of_devs: float = mean of the absolute value of deviations.
     """
     _mean: float = data.mean()
     _devs: pd.core.series.Series = np.abs(data - _mean)
     _avg_dev_mean: float = _devs.mean()
         
     return _mean, _devs, _avg_dev_mean
-    
-    
 
 
-# In[426]:
+# In[188]:
 
 
-mean_dev, dev, _avg_dev_mean = dev_from_mean(proc2['Sensor Glucose (mg/dL)'])
-mean_dev - 2*_avg_dev_mean
+raw = pd.read_csv('data/carelink2.csv')
 
 
-# In[427]:
+# In[189]:
+
+
+raw.columns, len(raw.index)
+
+
+# In[190]:
+
+
+#raw['Bolus Source'].value_counts()
+#raw['Bolus Number'].value_counts()
+#len(raw['dateTime'])
+#raw['BWZ Unabsorbed Insulin Total (U)'].value_counts()
+#raw['Bolus Cancellation Reason'].value_counts()
+#raw['Bolus Number'] = raw['Bolus Number'].apply(lambda x: int(x) if type(x) is str else x)
+
+
+# In[191]:
+
+
+# Check if the list contains other thing than integers.
+list(
+    filter(
+        lambda x: False if type(x) is int else True, raw['Final Bolus Estimate'].value_counts()
+    )
+)
+
+
+# In[192]:
+
+
+raw = merge_date_time(raw)
+
+
+# In[193]:
+
+
+# Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
+# as they impede coercing the values into timestamps.
+for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
+    raw = raw[raw.dateTime != row]
+
+
+# In[194]:
+
+
+pool = mp.Pool() # processes parameter can be set manually, 
+                 # but this is suposed to spawn the same number as the system has cores.
+
+raw.dateTime = pool.map(pd.to_datetime, raw.dateTime)
+
+pool.close()
+pool.terminate()
+
+
+# In[195]:
+
+
+undesired_columns = [
+    'Index',
+    'Temp Basal Type', 
+    'Temp Basal Duration (h:mm:ss)',
+    'BWZ Target High BG (mg/dL)', 
+    'BWZ Target Low BG (mg/dL)',
+    'Bolus Type',
+    'Insulin Action Curve Time',
+    'New Device Time',
+    'Bolus Duration (h:mm:ss)',
+    'Prime Type', 
+    'Prime Volume Delivered (U)',
+    'Alarm',
+    'ISIG Value',
+    'Event Marker',
+    'Bolus Number',
+    'Suspend', 
+    'Rewind',
+    'Linked BG Meter ID',
+    'Bolus Cancellation Reason',
+    'Scroll Step Size',
+    'Sensor Calibration Rejected Reason',
+    'Network Device Associated Reason',
+    'Network Device Disassociated Reason',
+    'Network Device Disconnected Reason',
+    'Sensor Exception',
+    'Preset Temp Basal Name',
+    'Preset Bolus', 
+    'Bolus Source'
+]
+
+
+# In[196]:
+
+
+raw = raw.drop(undesired_columns, axis=1)
+
+
+# In[197]:
+
+
+raw.columns
+
+
+# In[198]:
+
+
+unsure_columns = [
+    'BG Reading (mg/dL)',
+    'Sensor Calibration BG (mg/dL)'
+]
+
+
+# In[199]:
+
+
+proc1 = raw.drop(unsure_columns, axis=1)
+
+
+# In[200]:
+
+
+proc1 = time_indexed_df(proc1)
+
+
+# In[201]:
+
+
+overlapping_histograms(proc1, 
+                       ['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)'],
+                       colors=['red', 'green', 'blue'], 
+                       labels=('Bolus Wizard Estimation', 'Units', 'Density')
+                      )
+
+
+# In[19]:
+
+
+len(proc1['Basal Rate (U/h)']), proc1['Basal Rate (U/h)'].count()
+
+
+# In[20]:
+
+
+#with sb.axes_style('white'):
+ #   sb.jointplot('Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', raw[['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)']].dropna(), kind='hex')
+
+
+# In[21]:
+
+
+len(proc1['2019']['Basal Rate (U/h)']), proc1['2019']['Basal Rate (U/h)'].interpolate(method='pad').count()
+
+
+# In[22]:
+
+
+#proc1.loc['2019/02/10 01':'2019/02/10 02']['Basal Rate (U/h)']
+
+
+# In[41]:
+
+
+
+
+
+# In[24]:
+
+
+
+
+
+# In[28]:
+
+
+mean_dev, dev, _avg_dev_mean = dev_from_mean(proc1['Sensor Glucose (mg/dL)'])
+mean_dev, 2*_avg_dev_mean
+
+
+# In[36]:
+
+
+
+
+
+# In[37]:
 
 
 sb.distplot(dev.dropna())
 
 
-# In[414]:
+# In[47]:
+
+
+probability_estimate(dev, 0, 85, N=500, show_plots=False)
+
+
+# In[178]:
+
+
+#dev[ np.isnan(dev) ]
+
+
+# In[179]:
+
+
+#dev.std()
+
+
+# In[128]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[129]:
 
 
 (proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
@@ -396,25 +552,26 @@ proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='cubic').plot()
 proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)'].interpolate(method='spline', order=2).plot()
 hybrid_interpolator(proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']).plot()
+proc1.loc['2019/02/14 12':'2019/02/15 12']['Sensor Glucose (mg/dL)']
 plt.axhline(200, color='red')
 plt.axhline(70, color='green')
-plt.legend(['Bolus', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', 'hybrid'])
+plt.legend(['Bolus', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', 'hybrid', 'Data'])
 
 
-# In[415]:
+# In[130]:
 
 
 test_day = copy.deepcopy(proc1.loc['2019/02/14 12':'2019/02/14 22']['Sensor Glucose (mg/dL)'])
 gap1 = copy.deepcopy(test_day)
 
 
-# In[416]:
+# In[131]:
 
 
 proc2 = proc1.loc['2019/02/05':'2019/04/23']
 
 
-# In[420]:
+# In[132]:
 
 
 hybrid_interpolator(proc2.loc['2019/02/10':'2019/02/15']['Sensor Glucose (mg/dL)']).plot()
@@ -422,13 +579,13 @@ proc2.loc['2019/02/10':'2019/02/15']['Sensor Glucose (mg/dL)'].interpolate(metho
 proc2.loc['2019/02/10':'2019/02/15']['Sensor Glucose (mg/dL)'].plot()
 
 
-# In[394]:
+# In[133]:
 
 
 list(filter(lambda x: not x, sorted(proc2.index) == proc2.index))
 
 
-# In[379]:
+# In[134]:
 
 
 df = copy.deepcopy(test_day)
@@ -436,7 +593,7 @@ x = df.isnull().astype(int).groupby(df.notnull().astype(int).cumsum()).sum()
 #x
 
 
-# In[361]:
+# In[135]:
 
 
 gap1.loc['2019/02/14 20:00':'2019/02/14 20:30'] = np.nan
@@ -444,7 +601,7 @@ gap1.loc['2019/02/14 13:45':'2019/02/14 14:25'] = np.nan
 #gap1.loc['2019/02/14 17:45':'2019/02/14 18:15'] = np.nan
 
 
-# In[374]:
+# In[136]:
 
 
 gap1.interpolate(method='linear').plot()
@@ -457,20 +614,26 @@ plt.axhline(70, color='green')
 plt.legend(['Linear interpolation', 'Order 2 spline', 'Hybrid interpolator', 'Original data', 'gap1'])
 
 
-# In[351]:
+# In[137]:
 
 
-hybrid_interpolator(proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)']).plot()
-proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)'].interpolate(method='linear', limit_direction='both').plot()
+hybrid_proc1 = hybrid_interpolator(proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)'])
+linear_proc1 = proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)'].interpolate(method='linear', limit_direction='both')
 #proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)'].rolling(2).mean().plot()
-proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)'].plot()
-plt.legend(['Hybrid interpolator', 'Linear', 'Data'])
+#proc1.loc['2019/01':'2019/03']['Sensor Glucose (mg/dL)']
+#plt.legend(['Hybrid interpolator', 'Linear', 'Data'])
 
 
-# In[384]:
+# In[143]:
 
 
-proc1.loc['2019/02/05'].plot()
+dates: list = []
+for i in range(1, 4):
+    for j in range(1, 28):
+        if j < 10:
+            dates.append(f'2019/0{i}/0{j}')
+        else:
+            dates.append(f'2019/0{i}/{j}')
 
 
 # In[ ]:
@@ -479,58 +642,88 @@ proc1.loc['2019/02/05'].plot()
 
 
 
-# In[107]:
+# In[148]:
 
 
-proc1.iloc[0, :], proc1.iloc[len(proc1.index)-1, :]
+for date in dates:
+    hybrid_proc1[date].plot()
+    proc1.loc[date]['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+    proc1.loc[date]['Sensor Glucose (mg/dL)'].plot()
+    plt.legend(['Hybrid interpolator', 'Linear', 'Data'])
+    plt.show()
 
 
-# In[29]:
+# In[149]:
 
 
-with open('dateTime.txt', 'w') as f:
-    for i in raw['dateTime']:
-        f.write(f'{i}\n')
+#for i in pd.date_range(pd.to_datetime('2019/01/10'), periods=60).tolist():
+ #   hybrid_interpolator(proc1.loc[i]['Sensor Glucose (mg/dL)']).plot()
+  #  proc1.loc[i]['Sensor Glucose (mg/dL)'].plot()
 
 
-# In[30]:
+# In[151]:
 
 
-raw.index, raw['Index']
+#hybrid_interpolator(proc1.loc['2019/02/05']['Sensor Glucose (mg/dL)']).plot()
+#proc1.loc['2019/02/05']['Sensor Glucose (mg/dL)'].plot()
 
 
-# In[31]:
+# In[152]:
 
 
-raw['New Device Time'].count()
+#proc1.loc['2019/03/05 03':'2019/03/05 07']['Sensor Glucose (mg/dL)'].interpolate(method='linear').plot()
+#hybrid_interpolator(proc1.loc['2019/03/05 03':'2019/03/05 07']['Sensor Glucose (mg/dL)']).plot()
+#proc1.loc['2019/03/05 03':'2019/03/05 07']['Sensor Glucose (mg/dL)'].plot()
 
 
-# In[32]:
+# In[153]:
 
 
-raw[ raw['New Device Time'].notnull() ]['New Device Time']
+#proc1.iloc[0, :], proc1.iloc[len(proc1.index)-1, :]
 
 
-# In[33]:
+# In[154]:
 
 
+#with open('dateTime.txt', 'w') as f:
+#    for i in raw['dateTime']:
+#        f.write(f'{i}\n')
+
+
+# In[156]:
+
+
+'''
 list(
     map(
         type, list(raw[ raw['Sensor Glucose (mg/dL)'].notnull() ]['Sensor Glucose (mg/dL)'])
     )
 )
+'''
 
 
-# In[34]:
+# In[157]:
 
 
-glucosas = raw[ raw['Sensor Glucose (mg/dL)'].notnull() ]['Sensor Glucose (mg/dL)']
+#glucosas = raw[ raw['Sensor Glucose (mg/dL)'].notnull() ]['Sensor Glucose (mg/dL)']
 
 
-# In[35]:
+# In[158]:
 
 
-glucosas = pd.to_numeric(glucosas, 'coerce')
+#glucosas = pd.to_numeric(glucosas, 'coerce')
+
+
+# In[ ]:
+
+
+#glucosas = glucosas[glucosas == glucosas // 1]
+
+
+# In[160]:
+
+
+#sb.distplot(glucosas)
 
 
 # In[ ]:
@@ -539,67 +732,74 @@ glucosas = pd.to_numeric(glucosas, 'coerce')
 
 
 
-# In[36]:
+# In[ ]:
 
 
-glucosas = glucosas[glucosas == glucosas // 1]
 
 
-# In[37]:
+
+# In[ ]:
 
 
-sb.distplot(glucosas)
 
 
-# In[38]:
+
+# In[ ]:
 
 
-glucosas.plot()
 
 
-# In[46]:
+
+# In[ ]:
 
 
-proporciones = (lambda borne_inf, borne_sup: 
+
+
+
+# In[176]:
+
+
+proporciones = (lambda glucosas, borne_inf, borne_sup1, borne_sup2: 
                 { 
-                    'hypo':  100 * glucosas[glucosas < borne_inf].count() / glucosas.count(),
-                    'normo': 100 * glucosas[(glucosas >= borne_inf) & (glucosas <=borne_sup)].count() / glucosas.count(),
-                    'hyper': 100 * glucosas[glucosas > borne_sup].count() / glucosas.count()
+                    'hypo': (f'x <= {borne_inf}', 100 * glucosas[glucosas <= borne_inf].count() / glucosas.count()),
+                    'normo': (f'{borne_inf} < x <= {borne_sup1}', 100 * glucosas[(glucosas > borne_inf) & (glucosas <=borne_sup1)].count() / glucosas.count()),
+                    'hyper': (f'x > {borne_sup1}', 100 * glucosas[glucosas > borne_sup1].count() / glucosas.count()),
+                    'hyper2': (f'x > {borne_sup2}', 100 * glucosas[glucosas > borne_sup2].count() / glucosas.count()),
                 }
-)(70, 160)
+)(proc1['Sensor Glucose (mg/dL)'], 70, 140, 180)
 
 
-# In[48]:
+# In[177]:
 
 
 proporciones
 
 
-# In[49]:
+# In[ ]:
 
 
-glucosas.mean(), glucosas.std()
 
 
-# In[50]:
+
+# In[ ]:
 
 
-raw['BWZ Estimate (U)'].count()/90
 
 
-# In[184]:
+
+# In[168]:
 
 
 #raw.iloc[0,:], raw.iloc[len(raw.index)-1, :]
-data = np.random.multivariate_normal([0, 0], [[5, 2], [2, 2]], size=2000)
-data = pd.DataFrame(data, columns=['x', 'y'])
-data
+#data = np.random.multivariate_normal([0, 0], [[5, 2], [2, 2]], size=2000)
+#data = pd.DataFrame(data, columns=['x', 'y'])
+#data
 
 
-# In[29]:
+# In[ ]:
 
 
-x = pd.core.frame.DataFrame()
+
 
 
 # In[96]:
@@ -615,16 +815,16 @@ glucosas = filter(lambda x: x if not np.isnan(x) else False,
 '''    
 
 
-# In[118]:
+# In[ ]:
 
 
-np.array([[1], [2], [3]])
 
 
-# In[247]:
+
+# In[ ]:
 
 
-(raw['Sensor Glucose (mg/dL)'].dropna())[ raw['Sensor Glucose (mg/dL)'] > 120 ][['Sensor Glucose (mg/dL)', 'Time', 'Date']]
+
 
 
 # In[254]:
