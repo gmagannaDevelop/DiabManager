@@ -56,7 +56,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[187]:
+# In[255]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -271,7 +271,7 @@ def probability_estimate(data: pd.core.series.Series,
     # Plot the data using a normalized histogram
     dev = copy.deepcopy(data)
     dev = dev.dropna()
-    x = np.linspace(0, 250, 1000)[:, np.newaxis]
+    x = np.linspace(dev.min(), , 1000)[:, np.newaxis]
 
     # Do kernel density estimation
     kd = KernelDensity(kernel='gaussian', bandwidth=0.85).fit(np.array(dev).reshape(-1, 1))
@@ -285,7 +285,7 @@ def probability_estimate(data: pd.core.series.Series,
         plt.hist(dev, 50, normed=True)
         plt.xlabel('Concentration mg/dl')
         plt.ylabel('Density')
-        plt.title('Absolute deviations distribution')
+        plt.title('Probability Density Esimation')
         plt.show()
 
     #probability = integrate(lambda x: np.exp(kd.score_samples(x.reshape(-1, 1))), start, end)[0]
@@ -310,10 +310,11 @@ def dev_from_mean(data: pd.core.series.Series) -> typing.Tuple[float, pd.core.se
         avg_of_devs: float = mean of the absolute value of deviations.
     """
     _mean: float = data.mean()
+    _std: float = data.std()
     _devs: pd.core.series.Series = np.abs(data - _mean)
     _avg_dev_mean: float = _devs.mean()
         
-    return _mean, _devs, _avg_dev_mean
+    return _mean, _std, _devs, _avg_dev_mean
 
 
 # In[188]:
@@ -474,65 +475,29 @@ len(proc1['Basal Rate (U/h)']), proc1['Basal Rate (U/h)'].count()
 len(proc1['2019']['Basal Rate (U/h)']), proc1['2019']['Basal Rate (U/h)'].interpolate(method='pad').count()
 
 
-# In[22]:
+# In[262]:
 
 
-#proc1.loc['2019/02/10 01':'2019/02/10 02']['Basal Rate (U/h)']
+mean, std, dev, _avg_dev_mean = dev_from_mean(proc1['Sensor Glucose (mg/dL)'])
+mean, std, _avg_dev_mean
 
 
-# In[41]:
+# In[260]:
 
 
+x = proc1['Sensor Glucose (mg/dL)']
+probability_estimate(x, 
+                     x.mean() - 2*x.std(), 
+                     x.mean() + 2*x.std(),
+                     N=500, 
+                     show_plots=True
+                    )
 
 
-
-# In[24]:
-
+# In[263]:
 
 
-
-
-# In[28]:
-
-
-mean_dev, dev, _avg_dev_mean = dev_from_mean(proc1['Sensor Glucose (mg/dL)'])
-mean_dev, 2*_avg_dev_mean
-
-
-# In[36]:
-
-
-
-
-
-# In[37]:
-
-
-sb.distplot(dev.dropna())
-
-
-# In[47]:
-
-
-probability_estimate(dev, 0, 85, N=500, show_plots=False)
-
-
-# In[178]:
-
-
-#dev[ np.isnan(dev) ]
-
-
-# In[179]:
-
-
-#dev.std()
-
-
-# In[128]:
-
-
-
+probability_estimate(dev, 0, 80, N=500, show_plots=True)
 
 
 # In[235]:
@@ -616,35 +581,16 @@ gap2.loc['2019/02/14 13:45':'2019/02/14 14:25'] = np.nan
 #gap1.loc['2019/02/14 17:45':'2019/02/14 18:15'] = np.nan
 
 
-# In[241]:
+# In[ ]:
 
 
-gap1.loc['2019/02/14 19':'2019/02/14 22'].interpolate(method='linear').plot()
-gap1.loc['2019/02/14 19':'2019/02/14 22'].interpolate(method='spline', order=2).plot()
-[
-    hybrid_interpolator(gap1.loc['2019/02/14 19':'2019/02/14 22'], weights=w).plot()
-    for w in weights_set
-]
-gap1.loc['2019/02/14 19':'2019/02/14 22'].plot()
-plt.axhline(200, color='red')
-plt.axhline(70, color='green')
-plt.legend(['Linear interpolation', 'Order 2 spline', *labs, 'Original data', 'gap1'])
 
 
-# In[240]:
+
+# In[ ]:
 
 
-gap2.interpolate(method='linear').plot()
-gap2.interpolate(method='spline', order=2).plot()
-[
-    hybrid_interpolator(gap2, weights=w).plot()
-    for w in weights_set
-]
-test_day.plot()
-gap2.plot()
-plt.axhline(200, color='red')
-plt.axhline(70, color='green')
-plt.legend(['Linear interpolation', 'Order 2 spline', *labs, 'Original data', 'gap1'])
+
 
 
 # In[137]:
