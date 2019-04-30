@@ -519,7 +519,7 @@ proc2 = proc1.copy()
 # proc2['Sensor Glucose (mg/dL)'] = hybrid_interpolator(proc2['Sensor Glucose (mg/dL)'])
 
 
-# In[57]:
+# In[173]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -535,7 +535,7 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
     
     if interpolation:
         df['Sensor Glucose (mg/dL)'] = df['Sensor Glucose (mg/dL)'].interpolate(method='linear')
-        df['Basal Rate (U/h)'] = df['Basal Rate (U/h)'].interoplate(method='pad')
+        #df['Basal Rate (U/h)'] = df['Basal Rate (U/h)'].interoplate(method='pad')
   
     return df
 
@@ -552,52 +552,52 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
 len(proc1.index), len(proc1.index.get_duplicates())
 
 
-# In[82]:
+# In[179]:
 
 
 dummy = proc1.copy()
 
 
-# In[83]:
+# In[180]:
 
 
 dummy['_grouper'] = dummy.index
 
 
-# In[84]:
+# In[181]:
 
 
 dummy = dummy.groupby('_grouper').max().reset_index()
 
 
-# In[85]:
+# In[182]:
 
 
 dummy.index = dummy['_grouper']
 
 
-# In[86]:
+# In[183]:
 
 
 dummy = dummy.drop('_grouper', axis=1)
 
 
-# In[87]:
+# In[184]:
 
 
 dummy['Sensor Glucose (mg/dL)'] = hybrid_interpolator(dummy['Sensor Glucose (mg/dL)'])
 
 
-# In[89]:
+# In[153]:
 
 
-proc1['Sensor Glucose (mg/dL)']
+# proc1['Sensor Glucose (mg/dL)']
 
 
-# In[88]:
+# In[154]:
 
 
-dummy['Sensor Glucose (mg/dL)']
+# dummy['Sensor Glucose (mg/dL)']
 
 
 # In[107]:
@@ -643,10 +643,128 @@ y = np.array(data)
 y = y.flatten()
 
 
-# In[ ]:
+# In[149]:
 
 
+X
 
+
+# In[150]:
+
+
+y
+
+
+# In[147]:
+
+
+np.savetxt('data/X.np', X)
+
+
+# In[148]:
+
+
+np.savetxt('data/y.np', y)
+
+
+# In[151]:
+
+
+X
+
+
+# In[152]:
+
+
+y
+
+
+# In[155]:
+
+
+dummy.loc['2019/02/02 15':'2019/02/04 20'].plot()
+
+
+# In[165]:
+
+
+first_half = data.loc['2019/01/01':'2019/02/02 15']
+
+
+# In[166]:
+
+
+second_half = data.loc['2019/02/04 20':data.index[-1]]
+
+
+# In[167]:
+
+
+first_half.iloc[len(first_half)-100:len(first_half)-3, :].plot()
+
+
+# In[168]:
+
+
+proc1.iloc[0:1000].plot()
+
+
+# In[185]:
+
+
+first_half_resampled = resample_dataframe(first_half, interpolation=True)
+
+
+# In[187]:
+
+
+second_half_resampled = resample_dataframe(second_half, interpolation=True)
+
+
+# In[189]:
+
+
+#second_half_resampled
+
+
+# In[191]:
+
+
+def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
+  ''' Take a DataFrame with n columns and return a DataFrame with 
+  m*n columns containing the information of those three original columns
+  within the next 0:30, 1, 1:30, 2, 2:30, 2:45, and 3 hours (depending on the order).
+    order:
+      'first'  = 1, 2, and 3 hours.
+      'second' = 1, 2, 2:45, and 3 hours.
+      'third'  = 0:30, 1, 1:30, 2, 2:30, 2:45, and 3 hours.
+  '''
+  _df : pd.core.frame.DataFrame = df.copy()
+  if order == 'first':
+    _df = pd.concat([_df,                     _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                     _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                     _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                      axis=1)
+  elif order == 'second':
+    _df = pd.concat([_df,                   _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                   _df.shift(-165).rename(columns=dict((elem, elem+'2:45') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                    axis=1)
+  elif order == 'third':
+    _df = pd.concat([_df,                   _df.shift( -15).rename(columns=dict((elem, elem+'+ 0:15') for elem in df.columns)),                   _df.shift( -30).rename(columns=dict((elem, elem+'+ 0:30') for elem in df.columns)),                   _df.shift( -45).rename(columns=dict((elem, elem+'+ 0:45') for elem in df.columns)),                   _df.shift( -60).rename(columns=dict((elem, elem+'+ 1:00') for elem in df.columns)),                   _df.shift( -75).rename(columns=dict((elem, elem+'+ 1:15') for elem in df.columns)),                   _df.shift( -90).rename(columns=dict((elem, elem+'+ 1:30') for elem in df.columns)),                   _df.shift(-105).rename(columns=dict((elem, elem+'+ 1:45') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'+ 2:00') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'+ 3:00') for elem in df.columns))],                    axis=1)
+  elif order == 'naive':
+    _df = pd.concat([_df,                   _df.shift( -30).rename(columns=dict((elem, elem+'0:30') for elem in df.columns)),                   _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                   _df.shift( -90).rename(columns=dict((elem, elem+'1:30') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                   _df.shift(-150).rename(columns=dict((elem, elem+'2:30') for elem in df.columns)),                   _df.shift(-165).rename(columns=dict((elem, elem+'2:45') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                    axis=1)
+  else:
+    printf('Error, order {order} is not valid. \n Options are: \'first\', \'second\', or \'third\' \n')
+    _df = None
+
+  return _df
+
+
+# In[196]:
+
+
+hola = nn_format_df(first_half).dropna(how='any')
+
+
+# In[197]:
+
+
+hola.to_csv('binaries/t03.csv')
 
 
 # In[109]:
