@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[3]:
+# In[208]:
 
 
 ## Standard :
@@ -43,6 +43,7 @@ import matplotlib.pyplot as plt
 # Partial imports :
 from scipy.integrate import quad as integrate
 from sklearn.neighbors import KernelDensity
+from sklearn.svm import SVR
 
 # Full imports :
 from plotnine import *
@@ -755,16 +756,150 @@ def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str 
   return _df
 
 
-# In[196]:
+# In[200]:
 
 
-hola = nn_format_df(first_half).dropna(how='any')
+hola = nn_format_df(first_half_resampled).dropna(how='any')
 
 
-# In[197]:
+# In[204]:
 
 
-hola.to_csv('binaries/t03.csv')
+adios = nn_format_df(second_half_resampled).dropna(how='any')
+
+
+# In[205]:
+
+
+hola.to_csv('binaries/first_half_resampled.csv')
+
+
+# In[206]:
+
+
+adios.to_csv('binaries/second_half_resampled.csv')
+
+
+# In[207]:
+
+
+adios
+
+
+# In[209]:
+
+
+def predict_values(dates, prices, x):
+    dates = np.reshape(dates, (len(dates), 1))
+    
+    svrs = {
+        'linear': SVR(kernel='linear', C=1e3), 
+        'poly': SVR(kernel='poly', C=1e3, degree=2), 
+        'rbf': SVR(kernel='rbf', C=1e3, gamma=0.1)
+    }
+    
+    [ svrs[key].fit(dates, prices) for key in svrs.keys() ]
+    
+
+
+# In[215]:
+
+
+str(dummy.index[0]).split('-')[2]
+
+
+# In[ ]:
+
+
+def predict_prices(dates, prices, x):
+    dates = np.reshape(dates,(len(dates), 1)) # convert to 1xn dimension
+    x = np.reshape(x,(len(x), 1))
+    
+    svr_lin  = SVR(kernel='linear', C=1e3)
+    svr_poly = SVR(kernel='poly', C=1e3, degree=2)
+    svr_rbf = SVR(kernel='rbf', C=1e3, gamma=0.1)
+    
+    # Fit regression model
+    svr_lin .fit(dates, prices)
+    svr_poly.fit(dates, prices)
+    svr_rbf.fit(dates, prices)
+    
+    plt.scatter(dates, prices, c='k', label='Data')
+    plt.plot(dates, svr_lin.predict(dates), c='g', label='Linear model')
+    plt.plot(dates, svr_rbf.predict(dates), c='r', label='RBF model')    
+    plt.plot(dates, svr_poly.predict(dates), c='b', label='Polynomial model')
+    
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.title('Support Vector Regression')
+    plt.legend()
+    plt.show()
+    
+    return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
+
+
+# In[210]:
+
+
+#def predict_prices(dates, prices, x):
+#    dates = np.reshape(dates,(len(dates), 1)) # convert to 1xn dimension
+#    x = np.reshape(x,(len(x), 1))
+
+class SVRegressor(object):
+    
+    def __init__(self, C: float = 1e3, degree: int = 2, gamma: float = 0.1):
+        self._keys = ['linear', 'poly', 'rbf']   
+        self._svrs = {
+            'linear': SVR(kernel='linear', C=C), 
+            'poly': SVR(kernel='poly', C=C, degree=degree), 
+            'rbf': SVR(kernel='rbf', C=C, gamma=gamma)
+        }
+    
+    def __getitem__(self, key):
+        if key in self.keys:
+            return self._svrs[position]
+        else:
+            raise Exception(f'{key} not found in keys. Possible values are: {self.keys}')
+            
+    @property
+    def keys(self):
+        return self._keys
+    
+    @property
+    def kernels(self):
+        return self._keys
+    
+    def set_training_data(self, X, y):
+        self._X = X
+        self._y = y
+        
+    @property
+    def training_data(self):
+        ''' Returns self._X (features), self._y (labels)'''
+        return self._X, self._y
+        
+    def fit(self, kernel: str = 'all'):
+        if kernel == 'all':
+            [self._svrs[i].fit(self._X, self._y) for i in self.keys]
+        elif kernel in self.kernels:
+            self._svrs[kernel].fit(self._X, self._y)
+        else:
+            raise Exception(f'Invalid kernel name, available kernels are {self.kernels}')
+            
+        
+    [ svrs[key].fit(dates, prices) for key in svrs.keys() ]
+    
+    plt.scatter(dates, prices, c='k', label='Data')
+    for key, color in zip(svrs.keys(), ['g', 'r', 'n']):
+        plt.plot(dates, svrs[key].predict(dates), c=color, label=key)
+    
+    plt.xlabel('Date')
+    plt.ylabel('Price')
+    plt.title('Support Vector Regression')
+    plt.legend()
+    plt.show()
+    
+    return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
 # In[109]:
