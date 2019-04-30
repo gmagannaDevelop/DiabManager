@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[374]:
+# In[1]:
 
 
 get_ipython().run_line_magic('reset', '')
 
 
-# In[184]:
+# In[2]:
 
 
 ### To measure execution time (this method might not be very accurate, use with precaution)
@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[185]:
+# In[3]:
 
 
 ## Standard :
@@ -48,7 +48,7 @@ from sklearn.neighbors import KernelDensity
 from plotnine import *
 
 
-# In[186]:
+# In[4]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -56,7 +56,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[290]:
+# In[5]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -325,19 +325,19 @@ def porcentage_interpolated(serie: pd.core.series.Series, start: str, stop: str)
     return 1 - porcentage_original(serie, start, stop)
 
 
-# In[188]:
+# In[6]:
 
 
 raw = pd.read_csv('data/carelink2.csv')
 
 
-# In[189]:
+# In[7]:
 
 
 raw.columns, len(raw.index)
 
 
-# In[190]:
+# In[8]:
 
 
 #raw['Bolus Source'].value_counts()
@@ -348,7 +348,7 @@ raw.columns, len(raw.index)
 #raw['Bolus Number'] = raw['Bolus Number'].apply(lambda x: int(x) if type(x) is str else x)
 
 
-# In[191]:
+# In[9]:
 
 
 # Check if the list contains other thing than integers.
@@ -359,13 +359,13 @@ list(
 )
 
 
-# In[192]:
+# In[10]:
 
 
 raw = merge_date_time(raw)
 
 
-# In[193]:
+# In[11]:
 
 
 # Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
@@ -374,7 +374,7 @@ for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
     raw = raw[raw.dateTime != row]
 
 
-# In[194]:
+# In[12]:
 
 
 pool = mp.Pool() # processes parameter can be set manually, 
@@ -386,7 +386,7 @@ pool.close()
 pool.terminate()
 
 
-# In[195]:
+# In[13]:
 
 
 undesired_columns = [
@@ -421,19 +421,19 @@ undesired_columns = [
 ]
 
 
-# In[196]:
+# In[14]:
 
 
 raw = raw.drop(undesired_columns, axis=1)
 
 
-# In[197]:
+# In[15]:
 
 
 raw.columns
 
 
-# In[388]:
+# In[16]:
 
 
 unsure_columns = [
@@ -442,56 +442,56 @@ unsure_columns = [
 ]
 
 
-# In[438]:
+# In[17]:
 
 
 proc1 = raw.drop(unsure_columns, axis=1)
 
 
-# In[439]:
+# In[18]:
 
 
 proc1 = time_indexed_df(proc1)
 
 
-# In[440]:
+# In[19]:
 
 
 # len(proc1)
 
 
-# In[441]:
+# In[20]:
 
 
 # proc1.head(3) 
 
 
-# In[442]:
+# In[21]:
 
 
 proc1 = proc1.iloc[2:, :]
 
 
-# In[443]:
+# In[22]:
 
 
 # len(proc1)
 
 
-# In[444]:
+# In[23]:
 
 
 # proc1.head(3)
 
 
-# In[445]:
+# In[24]:
 
 
 # Cutoff seconds so that measurements are not lost when interpolating.
 proc1.index = proc1.index .map(lambda t: t.replace(second=0))
 
 
-# In[446]:
+# In[25]:
 
 
 overlapping_histograms(proc1, 
@@ -501,7 +501,25 @@ overlapping_histograms(proc1,
                       )
 
 
-# In[456]:
+# In[81]:
+
+
+proc2 = proc1.copy()
+
+
+# In[79]:
+
+
+# False in list(filter(lambda x: x, sorted(proc2.index) == proc2.index))
+
+
+# In[80]:
+
+
+# proc2['Sensor Glucose (mg/dL)'] = hybrid_interpolator(proc2['Sensor Glucose (mg/dL)'])
+
+
+# In[57]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -513,61 +531,128 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
 
     df = _df.copy()
     df = df.resample(resample_freq).mean()
-
-    # df[_df.index] = _df[_df.index]
+    #_index = df.index
     
     if interpolation:
-        '''
-        carbs = carbs.resample(interpolation_ratio).mean()
-        insu  = insu.resample(interpolation_ratio).mean()
-        carbs = carbs.fillna(0)
-        insu  = insu.fillna(0)
-        glc   = glc.interpolate()
-        '''    
+        df['Sensor Glucose (mg/dL)'] = df['Sensor Glucose (mg/dL)'].interpolate(method='linear')
+        df['Basal Rate (U/h)'] = df['Basal Rate (U/h)'].interoplate(method='pad')
   
     return df
 
 
-# In[457]:
+# In[58]:
 
 
 #proc1.loc[proc1.index[0], proc1.index[-1]].max()
 
 
-# In[458]:
+# In[59]:
 
 
 len(proc1.index), len(proc1.index.get_duplicates())
 
 
-# In[459]:
+# In[82]:
 
 
 dummy = proc1.copy()
 
 
-# In[460]:
+# In[83]:
 
 
 dummy['_grouper'] = dummy.index
 
 
-# In[461]:
+# In[84]:
 
 
 dummy = dummy.groupby('_grouper').max().reset_index()
 
 
-# In[462]:
+# In[85]:
 
 
 dummy.index = dummy['_grouper']
 
 
-# In[463]:
+# In[86]:
 
 
 dummy = dummy.drop('_grouper', axis=1)
+
+
+# In[87]:
+
+
+dummy['Sensor Glucose (mg/dL)'] = hybrid_interpolator(dummy['Sensor Glucose (mg/dL)'])
+
+
+# In[89]:
+
+
+proc1['Sensor Glucose (mg/dL)']
+
+
+# In[88]:
+
+
+dummy['Sensor Glucose (mg/dL)']
+
+
+# In[107]:
+
+
+dummy = dummy.loc['2018/06/24':'2019/04/23']
+
+
+# In[116]:
+
+
+#help(dummy.dropna)
+dummy['Sensor Glucose (mg/dL)'].count() / len(dummy['Sensor Glucose (mg/dL)'])
+
+
+# In[123]:
+
+
+data = dummy.dropna(axis='columns')
+
+
+# In[124]:
+
+
+X = np.array(data.index)
+
+
+# In[138]:
+
+
+X = X.reshape(-1, 1)
+
+
+# In[126]:
+
+
+y = np.array(data)
+
+
+# In[146]:
+
+
+y = y.flatten()
+
+
+# In[ ]:
+
+
+
+
+
+# In[109]:
+
+
+proc1['Basal Rate (U/h)'].interpolate(method='pad').count() / len(proc1['Basal Rate (U/h)'].interpolate(method='pad'))
 
 
 # (proc1.loc['2019/02/14 12':'2019/02/15 12']['Bolus Volume Delivered (U)'].dropna()*10).plot()
@@ -587,20 +672,48 @@ dummy = dummy.drop('_grouper', axis=1)
 # plt.axhline(70, color='green')
 # plt.legend(['Bolus', 'Carbs', 'Basal', 'Linear', 'Slinear', 'Quadratic', 'Cubic', 'spline', *labs, 'Data'])
 
-# In[464]:
+# In[65]:
 
 
-#proc1 = dummy
+#overlapping_histograms(proc1, 
+ #                      ['Bolus Volume Delivered (U)', 'BWZ Correction Estimate (U)', 'BWZ Food Estimate (U)'],
+  #                     colors=['red', 'green', 'blue'], 
+   #                    labels=('Bolus Wizard Estimation', 'Units', 'Density')
+    #                  )
 
 
-# In[469]:
+# In[66]:
 
 
-sb.distplot(dummy['Sensor Glucose (mg/dL)'].dropna())
-sb.distplot(resample_dataframe(dummy)['Sensor Glucose (mg/dL)'].dropna())
+#sb.distplot(dummy['Sensor Glucose (mg/dL)'].dropna())
+#sb.distplot(resample_dataframe(dummy)['Sensor Glucose (mg/dL)'].dropna())
 
 
-# In[474]:
+# In[67]:
+
+
+dummy2 = resample_dataframe(dummy)
+
+
+# In[69]:
+
+
+dummy2['2019']
+
+
+# In[40]:
+
+
+resample_dataframe(dummy).count()
+
+
+# In[41]:
+
+
+proc1.count()
+
+
+# In[37]:
 
 
 proc1[ proc1['Sensor Glucose (mg/dL)'] == dummy.loc[proc1.index]['Sensor Glucose (mg/dL)'] ]['Sensor Glucose (mg/dL)']
@@ -612,7 +725,7 @@ proc1[ proc1['Sensor Glucose (mg/dL)'] == dummy.loc[proc1.index]['Sensor Glucose
 proc1[ proc1['Sensor Glucose (mg/dL)'] != dummy.loc[proc1.index]['Sensor Glucose (mg/dL)'] ]['Sensor Glucose (mg/dL)'].dropna()
 
 
-# In[479]:
+# In[38]:
 
 
 dummy[ proc1['Sensor Glucose (mg/dL)'] != dummy.loc[proc1.index]['Sensor Glucose (mg/dL)'] ]['Sensor Glucose (mg/dL)'].dropna()
