@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[208]:
+# In[101]:
 
 
 ## Standard :
@@ -44,12 +44,13 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quad as integrate
 from sklearn.neighbors import KernelDensity
 from sklearn.svm import SVR
+from sklearn import preprocessing
 
 # Full imports :
 from plotnine import *
 
 
-# In[4]:
+# In[3]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -57,7 +58,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[5]:
+# In[4]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -326,47 +327,19 @@ def porcentage_interpolated(serie: pd.core.series.Series, start: str, stop: str)
     return 1 - porcentage_original(serie, start, stop)
 
 
-# In[6]:
+# In[5]:
 
 
 raw = pd.read_csv('data/carelink2.csv')
 
 
-# In[7]:
-
-
-raw.columns, len(raw.index)
-
-
 # In[8]:
-
-
-#raw['Bolus Source'].value_counts()
-#raw['Bolus Number'].value_counts()
-#len(raw['dateTime'])
-#raw['BWZ Unabsorbed Insulin Total (U)'].value_counts()
-#raw['Bolus Cancellation Reason'].value_counts()
-#raw['Bolus Number'] = raw['Bolus Number'].apply(lambda x: int(x) if type(x) is str else x)
-
-
-# In[9]:
-
-
-# Check if the list contains other thing than integers.
-list(
-    filter(
-        lambda x: False if type(x) is int else True, raw['Final Bolus Estimate'].value_counts()
-    )
-)
-
-
-# In[10]:
 
 
 raw = merge_date_time(raw)
 
 
-# In[11]:
+# In[9]:
 
 
 # Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
@@ -375,7 +348,7 @@ for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
     raw = raw[raw.dateTime != row]
 
 
-# In[12]:
+# In[10]:
 
 
 pool = mp.Pool() # processes parameter can be set manually, 
@@ -387,7 +360,7 @@ pool.close()
 pool.terminate()
 
 
-# In[13]:
+# In[11]:
 
 
 undesired_columns = [
@@ -422,19 +395,13 @@ undesired_columns = [
 ]
 
 
-# In[14]:
+# In[12]:
 
 
 raw = raw.drop(undesired_columns, axis=1)
 
 
-# In[15]:
-
-
-raw.columns
-
-
-# In[16]:
+# In[14]:
 
 
 unsure_columns = [
@@ -443,56 +410,32 @@ unsure_columns = [
 ]
 
 
-# In[17]:
+# In[15]:
 
 
 proc1 = raw.drop(unsure_columns, axis=1)
 
 
-# In[18]:
+# In[16]:
 
 
 proc1 = time_indexed_df(proc1)
 
 
-# In[19]:
-
-
-# len(proc1)
-
-
-# In[20]:
-
-
-# proc1.head(3) 
-
-
-# In[21]:
+# In[17]:
 
 
 proc1 = proc1.iloc[2:, :]
 
 
-# In[22]:
-
-
-# len(proc1)
-
-
-# In[23]:
-
-
-# proc1.head(3)
-
-
-# In[24]:
+# In[18]:
 
 
 # Cutoff seconds so that measurements are not lost when interpolating.
 proc1.index = proc1.index .map(lambda t: t.replace(second=0))
 
 
-# In[25]:
+# In[19]:
 
 
 overlapping_histograms(proc1, 
@@ -502,25 +445,13 @@ overlapping_histograms(proc1,
                       )
 
 
-# In[81]:
+# In[20]:
 
 
 proc2 = proc1.copy()
 
 
-# In[79]:
-
-
-# False in list(filter(lambda x: x, sorted(proc2.index) == proc2.index))
-
-
-# In[80]:
-
-
-# proc2['Sensor Glucose (mg/dL)'] = hybrid_interpolator(proc2['Sensor Glucose (mg/dL)'])
-
-
-# In[173]:
+# In[21]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -541,194 +472,95 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
     return df
 
 
-# In[58]:
-
-
-#proc1.loc[proc1.index[0], proc1.index[-1]].max()
-
-
-# In[59]:
+# In[22]:
 
 
 len(proc1.index), len(proc1.index.get_duplicates())
 
 
-# In[179]:
+# In[23]:
 
 
 dummy = proc1.copy()
-
-
-# In[180]:
-
-
 dummy['_grouper'] = dummy.index
-
-
-# In[181]:
-
-
 dummy = dummy.groupby('_grouper').max().reset_index()
-
-
-# In[182]:
-
-
 dummy.index = dummy['_grouper']
-
-
-# In[183]:
-
-
 dummy = dummy.drop('_grouper', axis=1)
 
 
-# In[184]:
+# In[28]:
 
 
+# SuperSlow execution! Cell
 dummy['Sensor Glucose (mg/dL)'] = hybrid_interpolator(dummy['Sensor Glucose (mg/dL)'])
 
 
-# In[153]:
-
-
-# proc1['Sensor Glucose (mg/dL)']
-
-
-# In[154]:
-
-
-# dummy['Sensor Glucose (mg/dL)']
-
-
-# In[107]:
+# In[29]:
 
 
 dummy = dummy.loc['2018/06/24':'2019/04/23']
 
 
-# In[116]:
+# In[30]:
 
 
 #help(dummy.dropna)
 dummy['Sensor Glucose (mg/dL)'].count() / len(dummy['Sensor Glucose (mg/dL)'])
 
 
-# In[123]:
+# In[31]:
 
 
 data = dummy.dropna(axis='columns')
 
 
-# In[124]:
+# In[32]:
 
 
 X = np.array(data.index)
-
-
-# In[138]:
-
-
 X = X.reshape(-1, 1)
-
-
-# In[126]:
-
-
 y = np.array(data)
-
-
-# In[146]:
-
-
 y = y.flatten()
 
 
-# In[149]:
-
-
-X
-
-
-# In[150]:
-
-
-y
-
-
-# In[147]:
+# In[33]:
 
 
 np.savetxt('data/X.np', X)
-
-
-# In[148]:
-
-
 np.savetxt('data/y.np', y)
 
 
-# In[151]:
-
-
-X
-
-
-# In[152]:
-
-
-y
-
-
-# In[155]:
+# In[34]:
 
 
 dummy.loc['2019/02/02 15':'2019/02/04 20'].plot()
 
 
-# In[165]:
+# In[38]:
 
 
 first_half = data.loc['2019/01/01':'2019/02/02 15']
 
 
-# In[166]:
+# In[39]:
 
 
 second_half = data.loc['2019/02/04 20':data.index[-1]]
 
 
-# In[167]:
-
-
-first_half.iloc[len(first_half)-100:len(first_half)-3, :].plot()
-
-
-# In[168]:
-
-
-proc1.iloc[0:1000].plot()
-
-
-# In[185]:
+# In[40]:
 
 
 first_half_resampled = resample_dataframe(first_half, interpolation=True)
 
 
-# In[187]:
+# In[41]:
 
 
 second_half_resampled = resample_dataframe(second_half, interpolation=True)
 
 
-# In[189]:
-
-
-#second_half_resampled
-
-
-# In[191]:
+# In[42]:
 
 
 def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
@@ -756,37 +588,65 @@ def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str 
   return _df
 
 
-# In[200]:
+# In[ ]:
+
+
+def svr_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
+  ''' Take a DataFrame with n columns and return a DataFrame with 
+  m*n columns containing the information of those three original columns
+  within the next 0:30, 1, 1:30, 2, 2:30, 2:45, and 3 hours (depending on the order).
+    order:
+      'first'  = 1, 2, and 3 hours.
+      'second' = 1, 2, 2:45, and 3 hours.
+      'third'  = 0:30, 1, 1:30, 2, 2:30, 2:45, and 3 hours.
+  '''
+  _df : pd.core.frame.DataFrame = df.copy()
+  if order == 'first':
+    _df = pd.concat([_df,                     _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                     _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                     _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                      axis=1)
+  elif order == 'second':
+    _df = pd.concat([_df,                   _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                   _df.shift(-165).rename(columns=dict((elem, elem+'2:45') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                    axis=1)
+  elif order == 'third':
+    _df = pd.concat([_df,                   _df.shift( -15).rename(columns=dict((elem, elem+'+ 0:15') for elem in df.columns)),                   _df.shift( -30).rename(columns=dict((elem, elem+'+ 0:30') for elem in df.columns)),                   _df.shift( -45).rename(columns=dict((elem, elem+'+ 0:45') for elem in df.columns)),                   _df.shift( -60).rename(columns=dict((elem, elem+'+ 1:00') for elem in df.columns)),                   _df.shift( -75).rename(columns=dict((elem, elem+'+ 1:15') for elem in df.columns)),                   _df.shift( -90).rename(columns=dict((elem, elem+'+ 1:30') for elem in df.columns)),                   _df.shift(-105).rename(columns=dict((elem, elem+'+ 1:45') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'+ 2:00') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'+ 3:00') for elem in df.columns))],                    axis=1)
+  elif order == 'naive':
+    _df = pd.concat([_df,                   _df.shift( -30).rename(columns=dict((elem, elem+'0:30') for elem in df.columns)),                   _df.shift( -60).rename(columns=dict((elem, elem+'1') for elem in df.columns)),                   _df.shift( -90).rename(columns=dict((elem, elem+'1:30') for elem in df.columns)),                   _df.shift(-120).rename(columns=dict((elem, elem+'2') for elem in df.columns)),                   _df.shift(-150).rename(columns=dict((elem, elem+'2:30') for elem in df.columns)),                   _df.shift(-165).rename(columns=dict((elem, elem+'2:45') for elem in df.columns)),                   _df.shift(-180).rename(columns=dict((elem, elem+'3') for elem in df.columns))],                    axis=1)
+  else:
+    printf('Error, order {order} is not valid. \n Options are: \'first\', \'second\', or \'third\' \n')
+    _df = None
+
+  return _df
+
+
+# In[43]:
 
 
 hola = nn_format_df(first_half_resampled).dropna(how='any')
 
 
-# In[204]:
+# In[44]:
 
 
 adios = nn_format_df(second_half_resampled).dropna(how='any')
 
 
-# In[205]:
+# In[45]:
 
 
 hola.to_csv('binaries/first_half_resampled.csv')
 
 
-# In[206]:
+# In[46]:
 
 
 adios.to_csv('binaries/second_half_resampled.csv')
 
 
-# In[207]:
+# In[48]:
 
 
-adios
+#adios
 
 
-# In[209]:
+# In[49]:
 
 
 def predict_values(dates, prices, x):
@@ -802,13 +662,13 @@ def predict_values(dates, prices, x):
     
 
 
-# In[215]:
+# In[50]:
 
 
 str(dummy.index[0]).split('-')[2]
 
 
-# In[ ]:
+# In[51]:
 
 
 def predict_prices(dates, prices, x):
@@ -838,7 +698,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[231]:
+# In[130]:
 
 
 #def predict_prices(dates, prices, x):
@@ -851,6 +711,8 @@ class SVRegressor(object):
                  C: float = 1e3, 
                  degree: int = 2, 
                  gamma: float = 0.1,
+                 X: np.ndarray = None,
+                 y: np.ndarray = None,
                  features: str = 'X',
                  labels: str = 'y'
                 ):
@@ -864,20 +726,33 @@ class SVRegressor(object):
             'features': features, 
             'labels': labels
         }
+        if X is not None and y is not None:
+            if type(X) is np.ndarray and type(y) is np.ndarray:
+                self._X = X
+                self._y = y
+            else:
+                raise Exception('type() X and y should be numpy.ndarray')
+        else:
+            self._X = X
+            self._y = y
+    ##
     
     def __getitem__(self, key):
         if key in self.keys:
             return self._svrs[position]
         else:
             raise Exception(f'{key} not found in keys. Possible values are: {self.keys}')
-            
+    ##
+    
     @property
     def keys(self):
         return self._keys
+    ##
     
     @property
     def kernels(self):
         return self._keys
+    ##
     
     def set_training_data(self, X, y):
         if type(X) is np.ndarray and type(y) is np.ndarray:
@@ -885,36 +760,102 @@ class SVRegressor(object):
             self._y = y
         else:
             raise Exception('type() X and y should be numpy.ndarray')
-        
+    ##
+    
     @property
     def training_data(self):
         ''' Returns self._X (features), self._y (labels)'''
         return self._X, self._y
-        
+    ##
+    
     def fit(self, kernel: str = 'all'):
         if kernel == 'all':
             [ self._svrs[i].fit(self._X, self._y) for i in self.keys ]
         elif kernel in self.kernels:
             self._svrs[kernel].fit(self._X, self._y)
         else:
-            raise Exception(f'Invalid kernel name, available kernels are {self.kernels}')
-
-    def training_plot(self, xlabel: str = 'X', y_label: str = 'y'):
-        plt.scatter(_X, y, c='k', label='Data')
+            raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
+    ##
+            
+    def plot_training(self, kernel: str = 'all', 
+                      xlabel: str = 'X', ylabel: str = 'y'):
         
-        if len(self._X.shape) == 1:
-            for key, color in zip(svrs.keys(), ['g', 'r', 'n']):
-                plt.plot(self._X, svrs[key].predict(self._X), c=color, label=key)
+        if kernel == 'all':
+            if len(self._X.shape) == 1:
+                plt.scatter(self._X, self._y, c='k', label='Data')
+                for key, color in zip(self._svrs.keys(), ['g', 'r', 'b']):
+                    plt.plot(self._X, self._svrs[key].predict(self._X), c=color, label=key)
+            else:
+                _dummy_x = [i for i in range(len(self._y))]
+                plt.scatter(_dummy_x, self._y, c='k', label='Data')
+                for i, key, color in zip(range(3), self._svrs.keys(), ['g', 'r', 'b']):
+                    plt.plot(_dummy_x, self._svrs[key].predict(self._X), c=color, label=key)
+        
+        elif kernel in self.kernels:
+            if len(self._X.shape) == 1:
+                plt.scatter(self._X, self._y, c='k', label='Data')
+                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
+            else:
+                _dummy_x = [i for i in range(len(self._y))]
+                plt.scatter(_dummy_x, self._y, c='k', label='Data')
+                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
+        
         else:
-            for i, key, color in enumerate(zip(svrs.keys(), ['g', 'r', 'n'])):
-                plt.plot(i, svrs[key].predict(self._X), c=color, label=key)
-    
+            raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
+        
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.title('Support Vector Regression')
         plt.legend()
         plt.show()
+    ##
+    
+    def plot_test(self, X: np.ndarray, y: np.ndarray, 
+                  kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
         
+        if type(X) is not np.ndarray or type(y) is not np.ndarray:
+            raise Exception('Input type() for X and y, shoud be numpy.ndarray')
+        elif X.shape[1] != self._X.shape[1]:
+            message = f'Model was trained on a {self._X.shape[1]}-dimensional space, input is {X.shape[1]}-dimensional'
+            raise Exception(message)
+        
+        if kernel == 'all':
+            if len(X.shape) == 1:
+                plt.scatter(X, y, c='k', label='Data')
+                for key, color in zip(self._svrs.keys(), ['g', 'r', 'b']):
+                    plt.plot(X, self._svrs[key].predict(X), c=color, label=key)
+            else:
+                _dummy_x = [i for i in range(len(y))]
+                plt.scatter(_dummy_x, y, c='k', label='Data')
+                for i, key, color in zip(range(3), self._svrs.keys(), ['g', 'r', 'b']):
+                    plt.plot(_dummy_x, self._svrs[key].predict(X), c=color, label=key)
+        
+        elif kernel in self.kernels:
+            if len(X.shape) == 1:
+                plt.scatter(X, y, c='k', label='Data')
+                plt.plot(X, self._svrs[kernel].predict(X), c='g', label=kernel)
+            else:
+                _dummy_x = [i for i in range(len(self._y))]
+                plt.scatter(_dummy_x, self._y, c='k', label='Data')
+                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
+        
+        else:
+            raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
+        
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title('Support Vector Regression')
+        plt.legend()
+        plt.show()
+    ##
+    
+    def normalize_features(self):
+        if type(self._X) is not None:
+            self._X = preprocessing.scale(X)
+        else:
+            raise Exception('Training data not set.')
+    ##
+    
     def predict(self, kernel: str = 'all',  X: np.ndarray = None):
         """ Acutal predictions are the first element, to access them:
             SVRegressor.predict()[0]
@@ -922,7 +863,7 @@ class SVRegressor(object):
         if not X:
             X = self._X
         elif type(X) is not np.ndarray:
-            raise Exception('Input type  type(X), shoud be numpy.ndarray')
+            raise Exception('Input type(X), shoud be numpy.ndarray')
         
         if kernel == 'all':
             return  { 
@@ -932,45 +873,77 @@ class SVRegressor(object):
                 raise Exception(f'Kernel not found. Possible values are: all, {self.kernels}')
         else:
             return self._svrs[kernel].predict(X) 
+    ##
 
 
-# In[238]:
+# In[121]:
+
+
+id(None)
+
+
+# In[110]:
 
 
 data = pd.read_csv('binaries/t03.csv')
 data.columns
 
 
-# In[253]:
+# In[111]:
 
 
-X = data.loc[:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
-X
+X = data.loc[1:200:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
+y = data.loc[1:200, 'Sensor Glucose (mg/dL)3'].values
+#X, y
 
 
-# In[252]:
+# In[132]:
 
 
-y = data['Sensor Glucose (mg/dL)3'].values
-y
+X.shape
 
 
-# In[254]:
+# In[129]:
+
+
+X2 = data.loc[300:500:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
+y2 = data.loc[300:500, 'Sensor Glucose (mg/dL)3'].values
+
+
+# In[123]:
 
 
 R = SVRegressor()
 
 
-# In[255]:
+# In[124]:
 
 
 R.set_training_data(X, y)
 
 
-# In[ ]:
+# In[125]:
+
+
+R.normalize_features()
+
+
+# In[126]:
 
 
 R.fit()
+
+
+# In[128]:
+
+
+R.training_plot()
+
+
+# In[92]:
+
+
+R.predict()
 
 
 # In[229]:
