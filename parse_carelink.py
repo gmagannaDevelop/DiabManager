@@ -838,7 +838,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[210]:
+# In[231]:
 
 
 #def predict_prices(dates, prices, x):
@@ -847,12 +847,22 @@ def predict_prices(dates, prices, x):
 
 class SVRegressor(object):
     
-    def __init__(self, C: float = 1e3, degree: int = 2, gamma: float = 0.1):
+    def __init__(self, 
+                 C: float = 1e3, 
+                 degree: int = 2, 
+                 gamma: float = 0.1,
+                 features: str = 'X',
+                 labels: str = 'y'
+                ):
         self._keys = ['linear', 'poly', 'rbf']   
         self._svrs = {
             'linear': SVR(kernel='linear', C=C), 
             'poly': SVR(kernel='poly', C=C, degree=degree), 
             'rbf': SVR(kernel='rbf', C=C, gamma=gamma)
+        }
+        self._labels = {
+            'features': features, 
+            'labels': labels
         }
     
     def __getitem__(self, key):
@@ -870,8 +880,11 @@ class SVRegressor(object):
         return self._keys
     
     def set_training_data(self, X, y):
-        self._X = X
-        self._y = y
+        if type(X) is np.ndarray and type(y) is np.ndarray:
+            self._X = X
+            self._y = y
+        else:
+            raise Exception('type() X and y should be numpy.ndarray')
         
     @property
     def training_data(self):
@@ -880,26 +893,96 @@ class SVRegressor(object):
         
     def fit(self, kernel: str = 'all'):
         if kernel == 'all':
-            [self._svrs[i].fit(self._X, self._y) for i in self.keys]
+            [ self._svrs[i].fit(self._X, self._y) for i in self.keys ]
         elif kernel in self.kernels:
             self._svrs[kernel].fit(self._X, self._y)
         else:
             raise Exception(f'Invalid kernel name, available kernels are {self.kernels}')
-            
+
+    def training_plot(self, xlabel: str = 'X', y_label: str = 'y'):
+        plt.scatter(_X, y, c='k', label='Data')
         
-    [ svrs[key].fit(dates, prices) for key in svrs.keys() ]
+        if len(self._X.shape) == 1:
+            for key, color in zip(svrs.keys(), ['g', 'r', 'n']):
+                plt.plot(self._X, svrs[key].predict(self._X), c=color, label=key)
+        else:
+            for i, key, color in enumerate(zip(svrs.keys(), ['g', 'r', 'n'])):
+                plt.plot(i, svrs[key].predict(self._X), c=color, label=key)
     
-    plt.scatter(dates, prices, c='k', label='Data')
-    for key, color in zip(svrs.keys(), ['g', 'r', 'n']):
-        plt.plot(dates, svrs[key].predict(dates), c=color, label=key)
-    
-    plt.xlabel('Date')
-    plt.ylabel('Price')
-    plt.title('Support Vector Regression')
-    plt.legend()
-    plt.show()
-    
-    return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title('Support Vector Regression')
+        plt.legend()
+        plt.show()
+        
+    def predict(self, kernel: str = 'all',  X: np.ndarray = None):
+        """ Acutal predictions are the first element, to access them:
+            SVRegressor.predict()[0]
+        """
+        if not X:
+            X = self._X
+        elif type(X) is not np.ndarray:
+            raise Exception('Input type  type(X), shoud be numpy.ndarray')
+        
+        if kernel == 'all':
+            return  { 
+                kernel: self._svrs[kern].predict(X) for kern in self.kernels 
+            }
+        elif kernel not in self.kernels:
+                raise Exception(f'Kernel not found. Possible values are: all, {self.kernels}')
+        else:
+            return self._svrs[kernel].predict(X) 
+
+
+# In[238]:
+
+
+data = pd.read_csv('binaries/t03.csv')
+data.columns
+
+
+# In[253]:
+
+
+X = data.loc[:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
+X
+
+
+# In[252]:
+
+
+y = data['Sensor Glucose (mg/dL)3'].values
+y
+
+
+# In[254]:
+
+
+R = SVRegressor()
+
+
+# In[255]:
+
+
+R.set_training_data(X, y)
+
+
+# In[ ]:
+
+
+R.fit()
+
+
+# In[229]:
+
+
+type(np.array([[1, 2], [3, 4]])) is not np.ndarray
+
+
+# In[227]:
+
+
+len(np.array([1, 2, 3, 4]).shape)
 
 
 # In[109]:
