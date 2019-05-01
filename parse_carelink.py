@@ -698,7 +698,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[130]:
+# In[151]:
 
 
 #def predict_prices(dates, prices, x):
@@ -739,7 +739,7 @@ class SVRegressor(object):
     
     def __getitem__(self, key):
         if key in self.keys:
-            return self._svrs[position]
+            return self._svrs[key]
         else:
             raise Exception(f'{key} not found in keys. Possible values are: {self.keys}')
     ##
@@ -798,7 +798,7 @@ class SVRegressor(object):
             else:
                 _dummy_x = [i for i in range(len(self._y))]
                 plt.scatter(_dummy_x, self._y, c='k', label='Data')
-                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
+                plt.plot(_dummy_x, self._svrs[kernel].predict(self._X), c='g', label=kernel)
         
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
@@ -814,10 +814,14 @@ class SVRegressor(object):
                   kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
         
         if type(X) is not np.ndarray or type(y) is not np.ndarray:
-            raise Exception('Input type() for X and y, shoud be numpy.ndarray')
+            raise Exception('Input type() for X and y shoud be numpy.ndarray')
         elif X.shape[1] != self._X.shape[1]:
             message = f'Model was trained on a {self._X.shape[1]}-dimensional space, input is {X.shape[1]}-dimensional'
             raise Exception(message)
+        elif X.shape[0] != y.shape[0]:
+            raise Exception('Features (X), and labels (y) must contain the same number of observations.')
+        else:
+            X = preprocessing.scale(X)
         
         if kernel == 'all':
             if len(X.shape) == 1:
@@ -836,8 +840,8 @@ class SVRegressor(object):
                 plt.plot(X, self._svrs[kernel].predict(X), c='g', label=kernel)
             else:
                 _dummy_x = [i for i in range(len(self._y))]
-                plt.scatter(_dummy_x, self._y, c='k', label='Data')
-                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
+                plt.scatter(_dummy_x, y, c='k', label='Data')
+                plt.plot(_dummy_x, self._svrs[kernel].predict(X), c='g', label=kernel)
         
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
@@ -882,68 +886,68 @@ class SVRegressor(object):
 id(None)
 
 
-# In[110]:
+# In[159]:
 
 
-data = pd.read_csv('binaries/t03.csv')
-data.columns
+data = pd.read_csv('binaries/first_half_resampled.csv')
+len(data.index)
 
 
-# In[111]:
+# In[160]:
 
 
-X = data.loc[1:200:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
-y = data.loc[1:200, 'Sensor Glucose (mg/dL)3'].values
+X = data.loc[1:30240:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
+y = data.loc[1:30240, 'Sensor Glucose (mg/dL)3'].values
 #X, y
 
 
-# In[132]:
+# In[161]:
 
 
 X.shape
 
 
-# In[129]:
+# In[163]:
 
 
-X2 = data.loc[300:500:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
-y2 = data.loc[300:500, 'Sensor Glucose (mg/dL)3'].values
+X2 = data.loc[30240:35000:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
+y2 = data.loc[30240:35000, 'Sensor Glucose (mg/dL)3'].values
 
 
-# In[123]:
+# In[164]:
 
 
 R = SVRegressor()
 
 
-# In[124]:
+# In[165]:
 
 
 R.set_training_data(X, y)
 
 
-# In[125]:
+# In[166]:
 
 
 R.normalize_features()
 
 
-# In[126]:
+# In[ ]:
 
 
 R.fit()
 
 
-# In[128]:
+# In[156]:
 
 
-R.training_plot()
+R.plot_training()
 
 
-# In[92]:
+# In[157]:
 
 
-R.predict()
+R.plot_test(X=X2, y=y2)
 
 
 # In[229]:
