@@ -698,7 +698,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[151]:
+# In[173]:
 
 
 #def predict_prices(dates, prices, x):
@@ -810,7 +810,22 @@ class SVRegressor(object):
         plt.show()
     ##
     
-    def plot_test(self, X: np.ndarray, y: np.ndarray, 
+    def metrics(self, kernel: str = 'all',
+                X: np.ndarray, y: np.ndarray):
+        if kernel == 'all':
+            predictions = { 
+                kernel: self._svrs[kernel].predict(X) for kernel in self.kernels
+            }
+        elif kernel in self.kernels:
+            prediction = self._svrs[kernel].predict(X)
+            corr       = np.corrcoef(prediction, y)[0][1]
+            _devs      = y - prediction
+            _abs_devs  = np.abs(_devs)
+        else:
+            raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
+        
+    
+    def plot_test(self, X: np.ndarray = None, y: np.ndarray = None, 
                   kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
         
         if type(X) is not np.ndarray or type(y) is not np.ndarray:
@@ -839,7 +854,7 @@ class SVRegressor(object):
                 plt.scatter(X, y, c='k', label='Data')
                 plt.plot(X, self._svrs[kernel].predict(X), c='g', label=kernel)
             else:
-                _dummy_x = [i for i in range(len(self._y))]
+                _dummy_x = [i for i in range(len(y))]
                 plt.scatter(_dummy_x, y, c='k', label='Data')
                 plt.plot(_dummy_x, self._svrs[kernel].predict(X), c='g', label=kernel)
         
@@ -868,6 +883,8 @@ class SVRegressor(object):
             X = self._X
         elif type(X) is not np.ndarray:
             raise Exception('Input type(X), shoud be numpy.ndarray')
+        else:
+            X = preprocessing.scale(X)
         
         if kernel == 'all':
             return  { 
@@ -886,14 +903,20 @@ class SVRegressor(object):
 id(None)
 
 
-# In[159]:
+# In[201]:
+
+
+np.abs(np.array([0, 0, 0]) - np.array([1, 2, 3]))
+
+
+# In[174]:
 
 
 data = pd.read_csv('binaries/first_half_resampled.csv')
 len(data.index)
 
 
-# In[160]:
+# In[175]:
 
 
 X = data.loc[1:30240:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
@@ -901,53 +924,69 @@ y = data.loc[1:30240, 'Sensor Glucose (mg/dL)3'].values
 #X, y
 
 
-# In[161]:
+# In[176]:
 
 
 X.shape
 
 
-# In[163]:
+# In[177]:
 
 
 X2 = data.loc[30240:35000:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
 y2 = data.loc[30240:35000, 'Sensor Glucose (mg/dL)3'].values
 
 
-# In[164]:
+# In[178]:
 
 
 R = SVRegressor()
 
 
-# In[165]:
+# In[179]:
 
 
 R.set_training_data(X, y)
 
 
-# In[166]:
+# In[180]:
 
 
 R.normalize_features()
 
 
-# In[ ]:
+# In[181]:
 
 
-R.fit()
+### To measure execution time (this method might not be very accurate, use with precaution)
+start = time.clock()
+R.fit(kernel='rbf')
+elapsed = time.clock()
+print(f'{elapsed - start}')
 
 
-# In[156]:
+# In[170]:
 
 
-R.plot_training()
+R.plot_training(kernel='rbf')
 
 
-# In[157]:
+# In[182]:
 
 
-R.plot_test(X=X2, y=y2)
+R.plot_test(X=X2, y=y2, kernel='rbf')
+
+
+# In[193]:
+
+
+R['rbf'].predict(X2)
+
+
+# In[197]:
+
+
+np.corrcoef([1, 2, 3, 4, 5], [4, 5, 7, 8, np.pi])[0][1]
 
 
 # In[229]:
