@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[101]:
+# In[1]:
 
 
 ## Standard :
@@ -50,7 +50,7 @@ from sklearn import preprocessing
 from plotnine import *
 
 
-# In[3]:
+# In[2]:
 
 
 get_ipython().run_line_magic('matplotlib', 'inline')
@@ -58,7 +58,7 @@ plt.rcParams['figure.figsize'] = (15, 8)
 sb.set_style("dark")
 
 
-# In[4]:
+# In[3]:
 
 
 def split(arr: list, count: int) -> typing.List[list]:
@@ -451,7 +451,7 @@ overlapping_histograms(proc1,
 proc2 = proc1.copy()
 
 
-# In[21]:
+# In[4]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -560,7 +560,7 @@ first_half_resampled = resample_dataframe(first_half, interpolation=True)
 second_half_resampled = resample_dataframe(second_half, interpolation=True)
 
 
-# In[42]:
+# In[5]:
 
 
 def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
@@ -588,7 +588,7 @@ def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str 
   return _df
 
 
-# In[ ]:
+# In[6]:
 
 
 def svr_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
@@ -646,7 +646,7 @@ adios.to_csv('binaries/second_half_resampled.csv')
 #adios
 
 
-# In[49]:
+# In[7]:
 
 
 def predict_values(dates, prices, x):
@@ -662,13 +662,13 @@ def predict_values(dates, prices, x):
     
 
 
-# In[50]:
+# In[8]:
 
 
 str(dummy.index[0]).split('-')[2]
 
 
-# In[51]:
+# In[9]:
 
 
 def predict_prices(dates, prices, x):
@@ -698,7 +698,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[173]:
+# In[12]:
 
 
 #def predict_prices(dates, prices, x):
@@ -776,42 +776,8 @@ class SVRegressor(object):
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
     ##
-            
-    def plot_training(self, kernel: str = 'all', 
-                      xlabel: str = 'X', ylabel: str = 'y'):
-        
-        if kernel == 'all':
-            if len(self._X.shape) == 1:
-                plt.scatter(self._X, self._y, c='k', label='Data')
-                for key, color in zip(self._svrs.keys(), ['g', 'r', 'b']):
-                    plt.plot(self._X, self._svrs[key].predict(self._X), c=color, label=key)
-            else:
-                _dummy_x = [i for i in range(len(self._y))]
-                plt.scatter(_dummy_x, self._y, c='k', label='Data')
-                for i, key, color in zip(range(3), self._svrs.keys(), ['g', 'r', 'b']):
-                    plt.plot(_dummy_x, self._svrs[key].predict(self._X), c=color, label=key)
-        
-        elif kernel in self.kernels:
-            if len(self._X.shape) == 1:
-                plt.scatter(self._X, self._y, c='k', label='Data')
-                plt.plot(self._X, self._svrs[kernel].predict(self._X), c='g', label=kernel)
-            else:
-                _dummy_x = [i for i in range(len(self._y))]
-                plt.scatter(_dummy_x, self._y, c='k', label='Data')
-                plt.plot(_dummy_x, self._svrs[kernel].predict(self._X), c='g', label=kernel)
-        
-        else:
-            raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
-        
-        plt.xlabel(xlabel)
-        plt.ylabel(ylabel)
-        plt.title('Support Vector Regression')
-        plt.legend()
-        plt.show()
-    ##
     
-    def metrics(self, kernel: str = 'all',
-                X: np.ndarray, y: np.ndarray):
+    def metrics(self, X: np.ndarray, y: np.ndarray, kernel: str = 'all'):
         if kernel == 'all':
             predictions = { 
                 kernel: self._svrs[kernel].predict(X) for kernel in self.kernels
@@ -823,20 +789,24 @@ class SVRegressor(object):
             _abs_devs  = np.abs(_devs)
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
-        
+    ##
     
-    def plot_test(self, X: np.ndarray = None, y: np.ndarray = None, 
-                  kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
+    def plot(self, X: np.ndarray = None, y: np.ndarray = None, 
+             kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
         
-        if type(X) is not np.ndarray or type(y) is not np.ndarray:
-            raise Exception('Input type() for X and y shoud be numpy.ndarray')
-        elif X.shape[1] != self._X.shape[1]:
-            message = f'Model was trained on a {self._X.shape[1]}-dimensional space, input is {X.shape[1]}-dimensional'
-            raise Exception(message)
-        elif X.shape[0] != y.shape[0]:
-            raise Exception('Features (X), and labels (y) must contain the same number of observations.')
+        if X is not None and y is not None:
+            if type(X) is not np.ndarray or type(y) is not np.ndarray:
+                raise Exception('Input type() for X and y shoud be numpy.ndarray')
+            elif X.shape[1] != self._X.shape[1]:
+                message = f'Model was trained on a {self._X.shape[1]}-dimensional space, input is {X.shape[1]}-dimensional'
+                raise Exception(message)
+            elif X.shape[0] != y.shape[0]:
+                raise Exception('Features (X), and labels (y) must contain the same number of observations.')
+            else:
+                X = preprocessing.scale(X)
         else:
-            X = preprocessing.scale(X)
+            X = self._X
+            y = self._y
         
         if kernel == 'all':
             if len(X.shape) == 1:
@@ -897,26 +867,38 @@ class SVRegressor(object):
     ##
 
 
-# In[121]:
+# In[13]:
 
 
 id(None)
 
 
-# In[201]:
+# In[14]:
 
 
 np.abs(np.array([0, 0, 0]) - np.array([1, 2, 3]))
 
 
-# In[174]:
+# In[15]:
 
 
 data = pd.read_csv('binaries/first_half_resampled.csv')
 len(data.index)
 
 
-# In[175]:
+# In[20]:
+
+
+data.columns
+
+
+# In[24]:
+
+
+data['Sensor Glucose (mg/dL)'].diff(periods=1).rolling(window=5).mean()
+
+
+# In[16]:
 
 
 X = data.loc[1:30240:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
@@ -924,7 +906,7 @@ y = data.loc[1:30240, 'Sensor Glucose (mg/dL)3'].values
 #X, y
 
 
-# In[176]:
+# In[17]:
 
 
 X.shape
@@ -977,10 +959,22 @@ R.plot_training(kernel='rbf')
 R.plot_test(X=X2, y=y2, kernel='rbf')
 
 
-# In[193]:
+# In[206]:
 
 
-R['rbf'].predict(X2)
+pred_y2 = R['rbf'].predict(X2)
+
+
+# In[207]:
+
+
+pred_y2.min()
+
+
+# In[208]:
+
+
+pred_y2.max()
 
 
 # In[197]:
