@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[1]:
+# In[208]:
 
 
 ## Standard :
@@ -31,6 +31,7 @@ import itertools
 import time
 import typing
 import random
+import pickle
 
 # Aliased imports :
 import multiprocessing as mp
@@ -45,6 +46,8 @@ from scipy.integrate import quad as integrate
 from sklearn.neighbors import KernelDensity
 from sklearn.svm import SVR
 from sklearn import preprocessing
+from sklearn.metrics import mean_squared_error
+from sklearn.utils import check_array
 
 # Full imports :
 from plotnine import *
@@ -716,7 +719,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[164]:
+# In[189]:
 
 
 #def predict_prices(dates, prices, x):
@@ -760,6 +763,14 @@ class SVRegressor(object):
             return self._svrs[key]
         else:
             raise Exception(f'{key} not found in keys. Possible values are: {self.keys}')
+    ##
+    
+    def load_model(self, filename, kernel=''):
+        # load the model from disk
+        if kernel in self.kernels:
+            self._svrs[kernel] = pickle.load(open(filename, 'rb'))
+        else:
+            raise Exception(f'Invalid kernel name. Available kernels are: {self.kernels}')
     ##
     
     @property
@@ -808,6 +819,34 @@ class SVRegressor(object):
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
     ##
+    
+    def mean_absolute_percentage_error(y_true, y_pred): 
+        y_true, y_pred = check_array(y_true, y_pred)
+        '''
+        Implemented as shown in:
+        https://stats.stackexchange.com/questions/58391/mean-absolute-percentage-error-mape-in-scikit-learn/294069?fbclid=IwAR1cFYqSCFUjdcM0R0jbUisMuRQ5UgSiZFctNVCdYyFtdZa_ILnMd0stUeU
+        '''
+        ## Note: does not handle mix 1d representation
+        #if _is_1d(y_true): 
+        #    y_true, y_pred = _check_1d_array(y_true, y_pred)
+
+        return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    
+    def MSE(self, X: np.ndarray = None, y: np.ndarray = None, kernel: str = ''):
+        '''
+        Error metrics:
+        Mean squared error.
+        Wrapper for sklearn.metrics.mean_squared_error()
+        '''
+        X = preprocessing.scale(X)
+        
+        if kernel and kernel in self.kernels:
+            predictions = self.predict(X, kernel=kernel)
+        else:
+            raise Exception(f'Invalid kernel {kernel}, available kernels are: {self.kernels}')
+        
+        return mean_squared_error(y, predictions)
+        
     
     def plot(self, X: np.ndarray = None, y: np.ndarray = None, 
              kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
@@ -863,11 +902,18 @@ class SVRegressor(object):
             raise Exception('Training data not set.')
     ##
     
+    def save_model(self, filename, kernel=''):
+        if kernel in self.kernels:
+            pickle.dump(R[kernel], open(filename, 'wb'))
+        else:
+            raise Exception(f'Invalid kernel name. Avaailable kernels: {self.kernels}')
+    ##
+    
     def predict(self, kernel: str = 'all',  X: np.ndarray = None):
         """ Acutal predictions are the first element, to access them:
             SVRegressor.predict()[0]
         """
-        if not X:
+        if X is None:
             X = self._X
         elif type(X) is not np.ndarray:
             raise Exception('Input type(X), shoud be numpy.ndarray')
@@ -988,11 +1034,25 @@ y = data.loc[1:30240, data.columns[-1]].values
 X.shape
 
 
-# In[162]:
+# In[177]:
 
 
-X2 = data.loc[30240:35000:, slicer[0]:slicer[1]].values
+X2 = data.loc[30240:35000:, slicer[0]:slicer[-1]].values
 y2 = data.loc[30240:35000, data.columns[-1]].values
+
+
+# In[179]:
+
+
+X3 = data.loc[35000:40000:, slicer[0]:slicer[-1]].values
+y3 = data.loc[35000:40000, data.columns[-1]].values
+
+
+# In[210]:
+
+
+X4 = data.loc[35000:35000+1500, slicer[0]:slicer[-1]].values
+y4 = data.loc[35000:35000+1500, data.columns[-1]].values
 
 
 # In[165]:
@@ -1013,7 +1073,7 @@ R.set_training_data(X, y)
 R.normalize_features()
 
 
-# In[ ]:
+# In[168]:
 
 
 ### To measure execution time (this method might not be very accurate, use with precaution)
@@ -1023,16 +1083,101 @@ elapsed = time.clock()
 print(f'{elapsed - start}')
 
 
-# In[170]:
+# In[169]:
 
 
-R.plot_training(kernel='rbf')
 
 
-# In[182]:
+
+# In[171]:
 
 
-R.plot_test(X=X2, y=y2, kernel='rbf')
+R.plot(kernel='rbf')
+
+
+# In[178]:
+
+
+R.plot(X=X2, y=y2, kernel='rbf')
+
+
+# In[216]:
+
+
+R.plot(X=X3, y=y3, kernel='rbf')
+
+
+# In[190]:
+
+
+Z = SVRegressor()
+
+
+# In[191]:
+
+
+Z.load_model(filename='models/rbf_21days_tseries_model.sav', kernel='rbf')
+
+
+# In[200]:
+
+
+mean_squared_error(split(y2, 2)[0], Z.predict(kernel='rbf', X=split(X2, 2)[0]))
+
+
+# In[204]:
+
+
+mean_squared_error(y, Z.predict(kernel='rbf', X=X))
+
+
+# In[201]:
+
+
+mean_squared_error(y2, Z.predict(kernel='rbf', X=X2))
+
+
+# In[209]:
+
+
+mean_squared_error(y3, Z.predict(kernel='rbf', X=X3))
+
+
+# In[211]:
+
+
+mean_squared_error(y4, Z.predict(kernel='rbf', X=X4))
+
+
+# In[219]:
+
+
+R.plot(X=X4, y=y4, kernel='rbf')
+
+
+# In[215]:
+
+
+
+
+
+# In[186]:
+
+
+filename = 'models/rbf_21days_tseries_model.sav'
+pickle.dump(R['rbf'], open(filename, 'wb'))
+
+
+# In[175]:
+
+
+R._X.shape
+
+
+# In[176]:
+
+
+X2.shape
 
 
 # In[206]:
