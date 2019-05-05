@@ -327,19 +327,19 @@ def porcentage_interpolated(serie: pd.core.series.Series, start: str, stop: str)
     return 1 - porcentage_original(serie, start, stop)
 
 
-# In[5]:
+# In[4]:
 
 
 raw = pd.read_csv('data/carelink2.csv')
 
 
-# In[8]:
+# In[5]:
 
 
 raw = merge_date_time(raw)
 
 
-# In[9]:
+# In[6]:
 
 
 # Remove ['MiniMed 640G MMT-1512/1712 Sensor', 'Date Time'] from the column, 
@@ -348,7 +348,7 @@ for row in filter(lambda x: False if ':' in x else True, raw['dateTime'] ):
     raw = raw[raw.dateTime != row]
 
 
-# In[10]:
+# In[7]:
 
 
 pool = mp.Pool() # processes parameter can be set manually, 
@@ -360,7 +360,7 @@ pool.close()
 pool.terminate()
 
 
-# In[11]:
+# In[8]:
 
 
 undesired_columns = [
@@ -395,13 +395,13 @@ undesired_columns = [
 ]
 
 
-# In[12]:
+# In[9]:
 
 
 raw = raw.drop(undesired_columns, axis=1)
 
 
-# In[14]:
+# In[10]:
 
 
 unsure_columns = [
@@ -410,32 +410,32 @@ unsure_columns = [
 ]
 
 
-# In[15]:
+# In[11]:
 
 
 proc1 = raw.drop(unsure_columns, axis=1)
 
 
-# In[16]:
+# In[12]:
 
 
 proc1 = time_indexed_df(proc1)
 
 
-# In[17]:
+# In[13]:
 
 
 proc1 = proc1.iloc[2:, :]
 
 
-# In[18]:
+# In[14]:
 
 
 # Cutoff seconds so that measurements are not lost when interpolating.
 proc1.index = proc1.index .map(lambda t: t.replace(second=0))
 
 
-# In[19]:
+# In[15]:
 
 
 overlapping_histograms(proc1, 
@@ -445,13 +445,13 @@ overlapping_histograms(proc1,
                       )
 
 
-# In[20]:
+# In[16]:
 
 
 proc2 = proc1.copy()
 
 
-# In[4]:
+# In[17]:
 
 
 def resample_dataframe(_df : pd.core.frame.DataFrame,
@@ -472,13 +472,13 @@ def resample_dataframe(_df : pd.core.frame.DataFrame,
     return df
 
 
-# In[22]:
+# In[18]:
 
 
 len(proc1.index), len(proc1.index.get_duplicates())
 
 
-# In[23]:
+# In[19]:
 
 
 dummy = proc1.copy()
@@ -488,33 +488,54 @@ dummy.index = dummy['_grouper']
 dummy = dummy.drop('_grouper', axis=1)
 
 
-# In[28]:
+# In[20]:
+
+
+dummy_first_half  = dummy.loc['2019/01/01':'2019/02/02 15']
+dummy_second_half = dummy.loc['2019/02/04 20':dummy.index[-1]]
+
+
+# In[23]:
 
 
 # SuperSlow execution! Cell
-dummy['Sensor Glucose (mg/dL)'] = hybrid_interpolator(dummy['Sensor Glucose (mg/dL)'])
+dummy['Sensor Glucose (mg/dL)'] = naive_hybrid_interpolator(dummy['Sensor Glucose (mg/dL)'])
 
 
-# In[29]:
+# In[21]:
+
+
+# Alternative.
+dummy_first_half.loc['Sensor Glucose (mg/dL)', :]  = naive_hybrid_interpolator(dummy_first_half['Sensor Glucose (mg/dL)'])
+dummy_second_half.loc['Sensor Glucose (mg/dL)', :] = naive_hybrid_interpolator(dummy_second_half['Sensor Glucose (mg/dL)'])
+
+
+# In[22]:
+
+
+dummy_first_half.loc['2019/01/30':'2019/02/15']['Sensor Glucose (mg/dL)'].plot()
+
+
+# In[24]:
 
 
 dummy = dummy.loc['2018/06/24':'2019/04/23']
 
 
-# In[30]:
+# In[25]:
 
 
 #help(dummy.dropna)
 dummy['Sensor Glucose (mg/dL)'].count() / len(dummy['Sensor Glucose (mg/dL)'])
 
 
-# In[31]:
+# In[26]:
 
 
 data = dummy.dropna(axis='columns')
 
 
-# In[32]:
+# In[27]:
 
 
 X = np.array(data.index)
@@ -523,44 +544,41 @@ y = np.array(data)
 y = y.flatten()
 
 
-# In[33]:
+# In[28]:
 
 
 np.savetxt('data/X.np', X)
 np.savetxt('data/y.np', y)
 
 
-# In[34]:
+# In[29]:
 
 
 dummy.loc['2019/02/02 15':'2019/02/04 20'].plot()
 
 
-# In[38]:
+# In[34]:
 
 
 first_half = data.loc['2019/01/01':'2019/02/02 15']
-
-
-# In[39]:
-
-
 second_half = data.loc['2019/02/04 20':data.index[-1]]
 
 
-# In[40]:
+# In[35]:
 
 
 first_half_resampled = resample_dataframe(first_half, interpolation=True)
-
-
-# In[41]:
-
-
 second_half_resampled = resample_dataframe(second_half, interpolation=True)
 
 
-# In[5]:
+# In[36]:
+
+
+first_half.to_csv('binaries/period1.csv')
+second_half.to_csv('binaries/period2.csv')
+
+
+# In[37]:
 
 
 def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
@@ -588,7 +606,7 @@ def nn_format_df(    df : pd.core.frame.DataFrame,                  order : str 
   return _df
 
 
-# In[6]:
+# In[38]:
 
 
 def svr_format_df(    df : pd.core.frame.DataFrame,                  order : str = 'first'           ) -> pd.core.frame.DataFrame:
@@ -616,25 +634,25 @@ def svr_format_df(    df : pd.core.frame.DataFrame,                  order : str
   return _df
 
 
-# In[43]:
+# In[39]:
 
 
 hola = nn_format_df(first_half_resampled).dropna(how='any')
 
 
-# In[44]:
+# In[40]:
 
 
 adios = nn_format_df(second_half_resampled).dropna(how='any')
 
 
-# In[45]:
+# In[41]:
 
 
 hola.to_csv('binaries/first_half_resampled.csv')
 
 
-# In[46]:
+# In[42]:
 
 
 adios.to_csv('binaries/second_half_resampled.csv')
@@ -662,13 +680,13 @@ def predict_values(dates, prices, x):
     
 
 
-# In[8]:
+# In[43]:
 
 
 str(dummy.index[0]).split('-')[2]
 
 
-# In[9]:
+# In[44]:
 
 
 def predict_prices(dates, prices, x):
@@ -698,7 +716,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[12]:
+# In[164]:
 
 
 #def predict_prices(dates, prices, x):
@@ -867,77 +885,135 @@ class SVRegressor(object):
     ##
 
 
-# In[13]:
+# In[46]:
 
 
 id(None)
 
 
-# In[14]:
+# In[47]:
 
 
 np.abs(np.array([0, 0, 0]) - np.array([1, 2, 3]))
 
 
-# In[15]:
+# # Start from here
+
+# In[146]:
 
 
-data = pd.read_csv('binaries/first_half_resampled.csv')
+data = pd.read_csv('binaries/first_half_resampled.csv', encoding="utf-8-sig")
 len(data.index)
 
 
-# In[20]:
+# In[147]:
 
 
-data.columns
+#data.columns
+data = data.set_index('grouper')
 
 
-# In[24]:
+# In[148]:
 
 
-data['Sensor Glucose (mg/dL)'].diff(periods=1).rolling(window=5).mean()
+data.head()
 
 
-# In[16]:
+# In[149]:
 
 
-X = data.loc[1:30240:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
-y = data.loc[1:30240, 'Sensor Glucose (mg/dL)3'].values
+data['Slope 1min'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=1).mean()
+data['Mean Slope 5min'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).mean()
+data['Total Slope 5min'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).sum()
+data['Slope Std. Dev,'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).std()
+data['Max slope'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).max()
+data['Min slope'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).min()
+data['Glucose (t+3:15)'] = data.shift(-15)['Glucose (t+3)']
+
+
+# In[150]:
+
+
+#dir(data['Glucose (t+3)'].diff(periods=1).rolling(window=5))
+
+
+# In[151]:
+
+
+#data['Glucose (t+3)'].diff(periods=1).rolling(window=5).std()
+
+
+# In[152]:
+
+
+data.head(17)
+
+
+# In[153]:
+
+
+slicer = data.columns[0:-1]
+
+
+# In[154]:
+
+
+data = data.reset_index().drop('grouper', axis=1)
+data = data.dropna()
+
+
+# In[159]:
+
+
+data.shape
+
+
+# In[155]:
+
+
+data.head()
+
+
+# In[160]:
+
+
+X = data.loc[1:30240, slicer[0]:slicer[-1]].values
+y = data.loc[1:30240, data.columns[-1]].values
 #X, y
 
 
-# In[17]:
+# In[161]:
 
 
 X.shape
 
 
-# In[177]:
+# In[162]:
 
 
-X2 = data.loc[30240:35000:, 'Sensor Glucose (mg/dL)':'Sensor Glucose (mg/dL)2'].values
-y2 = data.loc[30240:35000, 'Sensor Glucose (mg/dL)3'].values
+X2 = data.loc[30240:35000:, slicer[0]:slicer[1]].values
+y2 = data.loc[30240:35000, data.columns[-1]].values
 
 
-# In[178]:
+# In[165]:
 
 
 R = SVRegressor()
 
 
-# In[179]:
+# In[166]:
 
 
 R.set_training_data(X, y)
 
 
-# In[180]:
+# In[167]:
 
 
 R.normalize_features()
 
 
-# In[181]:
+# In[ ]:
 
 
 ### To measure execution time (this method might not be very accurate, use with precaution)
