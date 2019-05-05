@@ -17,7 +17,7 @@ get_ipython().run_line_magic('reset', '')
 #print(f'{elapsed - start}')
 
 
-# In[208]:
+# In[229]:
 
 
 ## Standard :
@@ -45,6 +45,7 @@ import matplotlib.pyplot as plt
 from scipy.integrate import quad as integrate
 from sklearn.neighbors import KernelDensity
 from sklearn.svm import SVR
+from sklearn.model_selection import GridSearchCV
 from sklearn import preprocessing
 from sklearn.metrics import mean_squared_error
 from sklearn.utils import check_array
@@ -719,7 +720,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[189]:
+# In[239]:
 
 
 #def predict_prices(dates, prices, x):
@@ -741,7 +742,7 @@ class SVRegressor(object):
         self._svrs = {
             'linear': SVR(kernel='linear', C=C), 
             'poly': SVR(kernel='poly', C=C, degree=degree), 
-            'rbf': SVR(kernel='rbf', C=C, gamma=gamma)
+            'rbf': SVR(kernel='rbf', C=C, gamma=gamma, epsilon=0.001)
         }
         self._labels = {
             'features': features, 
@@ -771,6 +772,24 @@ class SVRegressor(object):
             self._svrs[kernel] = pickle.load(open(filename, 'rb'))
         else:
             raise Exception(f'Invalid kernel name. Available kernels are: {self.kernels}')
+    ##
+    
+    def GridSearch(self, 
+                   param_grid: typing.Dict[str, int],
+                   verbose: bool = True,
+                   sk_verbose: int = 1,
+                   cv: int = 10,
+                   n_jobs: int = -1):
+        """
+            Wrapper for sklearn.model_selection.GridSearchCV
+        """
+        self._param_grid = param_grid
+        search_grid = GridSearchCV(SVR(), self._param_grid, verbose=sk_verbose, cv=cv, n_jobs=n_jobs)
+        search_grid.fit(self._X, self._y)
+        
+        if verbose:
+            print("Best Parameters:\n", search_grid.best_params_)
+            print("Best Estimators:\n", search_grid.best_estimator_)
     ##
     
     @property
@@ -831,6 +850,7 @@ class SVRegressor(object):
         #    y_true, y_pred = _check_1d_array(y_true, y_pred)
 
         return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    ##
     
     def MSE(self, X: np.ndarray = None, y: np.ndarray = None, kernel: str = ''):
         '''
@@ -846,21 +866,13 @@ class SVRegressor(object):
             raise Exception(f'Invalid kernel {kernel}, available kernels are: {self.kernels}')
         
         return mean_squared_error(y, predictions)
-        
+    ##    
     
     def plot(self, X: np.ndarray = None, y: np.ndarray = None, 
              kernel: str = 'all', xlabel: str = 'X', ylabel: str = 'y'):
         
         if X is not None and y is not None:
-            if type(X) is not np.ndarray or type(y) is not np.ndarray:
-                raise Exception('Input type() for X and y shoud be numpy.ndarray')
-            elif X.shape[1] != self._X.shape[1]:
-                message = f'Model was trained on a {self._X.shape[1]}-dimensional space, input is {X.shape[1]}-dimensional'
-                raise Exception(message)
-            elif X.shape[0] != y.shape[0]:
-                raise Exception('Features (X), and labels (y) must contain the same number of observations.')
-            else:
-                X = preprocessing.scale(X)
+            X = preprocessing.scale(X)
         else:
             X = self._X
             y = self._y
@@ -884,7 +896,6 @@ class SVRegressor(object):
                 _dummy_x = [i for i in range(len(y))]
                 plt.scatter(_dummy_x, y, c='k', label='Data')
                 plt.plot(_dummy_x, self._svrs[kernel].predict(X), c='g', label=kernel)
-        
         else:
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
         
@@ -892,7 +903,7 @@ class SVRegressor(object):
         plt.ylabel(ylabel)
         plt.title('Support Vector Regression')
         plt.legend()
-        plt.show()
+        plt.show() 
     ##
     
     def normalize_features(self):
@@ -1107,59 +1118,114 @@ R.plot(X=X2, y=y2, kernel='rbf')
 R.plot(X=X3, y=y3, kernel='rbf')
 
 
-# In[190]:
+# In[221]:
 
 
 Z = SVRegressor()
 
 
-# In[191]:
+# In[222]:
 
 
 Z.load_model(filename='models/rbf_21days_tseries_model.sav', kernel='rbf')
 
 
-# In[200]:
+# In[223]:
 
 
 mean_squared_error(split(y2, 2)[0], Z.predict(kernel='rbf', X=split(X2, 2)[0]))
 
 
-# In[204]:
+# In[224]:
 
 
 mean_squared_error(y, Z.predict(kernel='rbf', X=X))
 
 
-# In[201]:
+# In[225]:
 
 
 mean_squared_error(y2, Z.predict(kernel='rbf', X=X2))
 
 
-# In[209]:
+# In[226]:
 
 
 mean_squared_error(y3, Z.predict(kernel='rbf', X=X3))
 
 
-# In[211]:
+# In[227]:
 
 
 mean_squared_error(y4, Z.predict(kernel='rbf', X=X4))
 
 
-# In[219]:
+# In[228]:
 
 
-R.plot(X=X4, y=y4, kernel='rbf')
+Z.plot(X=X4, y=y4, kernel='rbf')
 
 
-# In[215]:
+# # Grid Search
+
+# In[240]:
 
 
+X = data.loc[1:2880, slicer[0]:slicer[-1]].values
+y = data.loc[1:2880, data.columns[-1]].values
 
 
+# In[241]:
+
+
+GS = SVRegressor()
+
+
+# In[242]:
+
+
+GS.set_training_data(X, y)
+GS.normalize_features()
+
+
+# In[243]:
+
+
+SVR(kernel='rbf', 
+    degree=3, gamma='auto_deprecated', 
+    coef0=0.0, tol=0.001, C=1.0, epsilon=0.1)
+
+
+# In[244]:
+
+
+# Perhaps this was too ambicious?
+params = {
+    'kernel': ['linear', 'poly', 'rbf'],
+    'C': [0.1, 1, 10, 100], 
+    'gamma': [1, 0.1, 0.01, 0.001, 0.00001, 10],
+    'epsilon': [0.5, 0.1, 0.05, 0.01, 0.005, 0.001]
+}
+
+
+# In[246]:
+
+
+params = {
+    'kernel': ['rbf'],
+    'C': [0.1, 1, 10, 100], 
+    'gamma': [1, 0.1, 0.01, 0.001, 0.00001, 10],
+    'epsilon': [0.1, 0.01, 0.001]
+}
+
+
+# In[247]:
+
+
+GS.GridSearch(param_grid=params)
+
+
+# # Miscellaneous
 
 # In[186]:
 
