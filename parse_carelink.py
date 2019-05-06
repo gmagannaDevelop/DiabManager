@@ -720,7 +720,7 @@ def predict_prices(dates, prices, x):
     return svr_rbf.predict(x)[0], svr_lin.predict(x)[0], svr_poly.predict(x)[0]
 
 
-# In[239]:
+# In[312]:
 
 
 #def predict_prices(dates, prices, x):
@@ -730,14 +730,18 @@ def predict_prices(dates, prices, x):
 class SVRegressor(object):
     
     def __init__(self, 
-                 C: float = 1e3, 
+                 C: float = 100, 
                  degree: int = 2, 
-                 gamma: float = 0.1,
+                 gamma: float = 0.001,
+                 epsilon: float = 0.01,
                  X: np.ndarray = None,
                  y: np.ndarray = None,
                  features: str = 'X',
                  labels: str = 'y'
                 ):
+        """
+         Parameter C, gamma and epsilon were set according to a GridSearch.
+        """
         self._keys = ['linear', 'poly', 'rbf']   
         self._svrs = {
             'linear': SVR(kernel='linear', C=C), 
@@ -786,6 +790,13 @@ class SVRegressor(object):
         self._param_grid = param_grid
         search_grid = GridSearchCV(SVR(), self._param_grid, verbose=sk_verbose, cv=cv, n_jobs=n_jobs)
         search_grid.fit(self._X, self._y)
+        
+        self._best_params = search_grid.best_params_
+        self._best_estimator = search_grid.best_estimator_
+        
+        self._svrs.update({
+            'GridSearch': SVR(**self._best_params)
+        })
         
         if verbose:
             print("Best Parameters:\n", search_grid.best_params_)
@@ -839,9 +850,11 @@ class SVRegressor(object):
             raise Exception(f'Invalid kernel, available kernels are {self.kernels}')
     ##
     
-    def mean_absolute_percentage_error(y_true, y_pred): 
-        y_true, y_pred = check_array(y_true, y_pred)
+    def MAPE(self, y_true, y_pred): 
+        #y_true, y_pred = check_array(y_true, y_pred)
         '''
+        Error metrics:
+        Mean absolute percentage error.
         Implemented as shown in:
         https://stats.stackexchange.com/questions/58391/mean-absolute-percentage-error-mape-in-scikit-learn/294069?fbclid=IwAR1cFYqSCFUjdcM0R0jbUisMuRQ5UgSiZFctNVCdYyFtdZa_ILnMd0stUeU
         '''
@@ -861,7 +874,7 @@ class SVRegressor(object):
         X = preprocessing.scale(X)
         
         if kernel and kernel in self.kernels:
-            predictions = self.predict(X, kernel=kernel)
+            predictions = self.predict(kernel=kernel, X=X)
         else:
             raise Exception(f'Invalid kernel {kernel}, available kernels are: {self.kernels}')
         
@@ -954,29 +967,40 @@ id(None)
 np.abs(np.array([0, 0, 0]) - np.array([1, 2, 3]))
 
 
+# In[ ]:
+
+
+
+
+
 # # Start from here
 
-# In[146]:
+# In[282]:
 
 
 data = pd.read_csv('binaries/first_half_resampled.csv', encoding="utf-8-sig")
 len(data.index)
 
 
-# In[147]:
+# In[283]:
 
 
-#data.columns
+pool = mp.Pool() # processes parameter can be set manually, 
+                 # but this is suposed to spawn the same number as the system has cores.
+
+data.grouper = pool.map(pd.to_datetime, data.grouper)
+
+pool.close()
+pool.terminate()
+
+
+# In[284]:
+
+
 data = data.set_index('grouper')
 
 
-# In[148]:
-
-
-data.head()
-
-
-# In[149]:
+# In[285]:
 
 
 data['Slope 1min'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=1).mean()
@@ -986,6 +1010,7 @@ data['Slope Std. Dev,'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5
 data['Max slope'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).max()
 data['Min slope'] = data['Glucose (t+3)'].diff(periods=1).rolling(window=5).min()
 data['Glucose (t+3:15)'] = data.shift(-15)['Glucose (t+3)']
+data = data.dropna()
 
 
 # In[150]:
@@ -1118,13 +1143,13 @@ R.plot(X=X2, y=y2, kernel='rbf')
 R.plot(X=X3, y=y3, kernel='rbf')
 
 
-# In[221]:
+# In[325]:
 
 
 Z = SVRegressor()
 
 
-# In[222]:
+# In[326]:
 
 
 Z.load_model(filename='models/rbf_21days_tseries_model.sav', kernel='rbf')
@@ -1166,29 +1191,39 @@ mean_squared_error(y4, Z.predict(kernel='rbf', X=X4))
 Z.plot(X=X4, y=y4, kernel='rbf')
 
 
+# In[293]:
+
+
+def sampler(start: str, end: str):
+    pass
+
+
 # # Grid Search
 
-# In[240]:
+# In[338]:
 
 
-X = data.loc[1:2880, slicer[0]:slicer[-1]].values
-y = data.loc[1:2880, data.columns[-1]].values
+# X, y 
+# X = data.loc[1:5760, slicer[0]:slicer[-1]].values
+# y = data.loc[1:5760, data.columns[-1]].values
+X = data.loc['2019/01/01':'2019/01/21', slicer[0]:slicer[-1]].values
+y = data.loc['2019/01/01':'2019/01/21', data.columns[-1]].values
 
 
-# In[241]:
+# In[339]:
 
 
 GS = SVRegressor()
 
 
-# In[242]:
+# In[340]:
 
 
 GS.set_training_data(X, y)
 GS.normalize_features()
 
 
-# In[243]:
+# In[305]:
 
 
 SVR(kernel='rbf', 
@@ -1196,7 +1231,7 @@ SVR(kernel='rbf',
     coef0=0.0, tol=0.001, C=1.0, epsilon=0.1)
 
 
-# In[244]:
+# In[253]:
 
 
 # Perhaps this was too ambicious?
@@ -1208,7 +1243,7 @@ params = {
 }
 
 
-# In[246]:
+# In[254]:
 
 
 params = {
@@ -1225,6 +1260,80 @@ params = {
 GS.GridSearch(param_grid=params)
 
 
+# In[341]:
+
+
+start = time.clock()
+GS.fit()
+elapsed = time.clock()
+print(f'{elapsed - start}')
+
+
+# In[342]:
+
+
+GS.plot(kernel='rbf')
+
+
+# In[294]:
+
+
+#data['2019/01/02']
+#X = data.loc['2019/01/01':'2019/01/07', slicer[0]:slicer[-1]].values
+#y = data.loc['2019/01/01':'2019/01/07', data.columns[-1]].values
+
+
+# In[346]:
+
+
+X2 = data.loc['2019/01/11':'2019/01/13', slicer[0]:slicer[-1]].values
+y2 = data.loc['2019/01/11':'2019/01/13', data.columns[-1]].values
+
+
+# In[332]:
+
+
+X2
+
+
+# In[322]:
+
+
+GS.predict(kernel='rbf')
+
+
+# In[343]:
+
+
+#     def MAPE(self, y_true, y_pred): 
+GS.MAPE(y.reshape(-1, 1), GS.predict(kernel='rbf').reshape(-1, 1))
+
+
+# In[345]:
+
+
+# def MSE(self, X: np.ndarray = None, y: np.ndarray = None, kernel: str = ''):
+GS.MSE(X=X, y=y, kernel='rbf')
+
+
+# In[348]:
+
+
+GS.MAPE(y2.reshape(-1, 1), GS.predict(kernel='rbf', X=X2).reshape(-1, 1))
+
+
+# In[349]:
+
+
+GS.MSE(X=X2, y=y2, kernel='rbf')
+
+
+# In[350]:
+
+
+GS.plot(kernel='rbf', X=X2, y=y2)
+
+
 # # Miscellaneous
 
 # In[186]:
@@ -1232,6 +1341,12 @@ GS.GridSearch(param_grid=params)
 
 filename = 'models/rbf_21days_tseries_model.sav'
 pickle.dump(R['rbf'], open(filename, 'wb'))
+
+
+# In[ ]:
+
+
+
 
 
 # In[175]:
