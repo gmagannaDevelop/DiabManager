@@ -1343,10 +1343,11 @@ filename = 'models/rbf_21days_tseries_model.sav'
 pickle.dump(R['rbf'], open(filename, 'wb'))
 
 
-# In[ ]:
+# In[351]:
 
 
-
+filename = 'models/GridSearch_21j_rbf.sav'
+pickle.dump(GS['rbf'], open(filename, 'wb'))
 
 
 # In[175]:
