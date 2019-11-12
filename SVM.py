@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[28]:
+# In[2]:
 
 
 import pandas as pd
@@ -27,10 +27,10 @@ import gmparser as parse
 data, encoded_data, X, y = parse.main()
 
 
-# In[30]:
+# In[1]:
 
 
-encoded_data.corr()
+encoded_data.head()
 
 
 # In[31]:
